@@ -24,6 +24,7 @@ from oppia.apps.base_model.models import BaseModel
 from oppia import feconf
 
 from django.db import models
+import caching.base
 
 # TODO: Validation of the format of image model. This is builtin in django. Can
 # be done using ModelForm after implementing the views.
@@ -39,7 +40,7 @@ from django.db import models
 #         assert is_valid, error_message
 
 
-class Image(BaseModel):
+class Image(caching.base.CachingMixin, BaseModel):
     """An image."""
     # The raw image blob.
     raw = models.ImageField(upload_to='uploads/images')
@@ -61,3 +62,5 @@ class Image(BaseModel):
         """Validates the model instance before saving"""
         self.full_clean()
         self.save()
+
+    objects = caching.base.CachingManager()
