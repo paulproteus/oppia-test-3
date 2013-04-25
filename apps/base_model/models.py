@@ -18,15 +18,17 @@ __author__ = 'Sean Lip'
 
 import base64
 import hashlib
+import json
 
 from oppia import utils
 
 from django.db import models
+from django.db.models.base import ModelState
 
 
 class BaseModel(models.Model):
     """A model stub which has an explicit id property."""
-    id = models.CharField(max_length=20, primary_key=True)
+    id = models.CharField(max_length=100, primary_key=True)
 
     @classmethod
     def get_new_id(cls, entity_name):
@@ -48,3 +50,32 @@ class BaseModel(models.Model):
                 return new_id
 
         raise Exception('New id generator is producing too many collisions.')
+
+
+class CustomTypeEncoder(json.JSONEncoder):
+    """A custom JSONEncoder class that knows how to encode core custom
+    objects.
+
+    Custom objects are encoded as JSON object literals (ie, dicts) with
+    one key, '__TypeName__' where 'TypeName' is the actual name of the
+    type to which the object belongs.  That single key maps to another
+    object literal which is just the __dict__ of the object encoded."""
+
+    # A tuples consisting the classes of all the custom objects we will encode
+    types = None
+
+    def default(self, obj):
+        if isinstance(obj, self.types):
+            key = '__%s__' % obj.__class__.__name__
+            return {key: obj.__dict__}
+        # Every instance of a django model consists a ModelState instance inside it.
+        # We don't need the ModelState instance encoded. So we get rid of it.
+        if isinstance(obj, ModelState):
+            return {'ModelState': ''}
+        return json.JSONEncoder.default(self, obj)
+
+
+def decode_value(value):
+    while not isinstance(value, list):
+        value = json.loads(value)
+    return value

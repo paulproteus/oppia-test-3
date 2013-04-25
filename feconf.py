@@ -76,7 +76,7 @@ TEMPLATE_DIR = os.path.join(
 THIRD_PARTY_DIR = 'third_party'
 
 # The directories containing sample classifiers, explorations and widgets.
-SAMPLE_CLASSIFIERS_DIR = 'data/classifiers'
+SAMPLE_CLASSIFIERS_DIR = 'oppia/data/classifiers'
 SAMPLE_EXPLORATIONS_DIR = 'data/explorations'
 SAMPLE_IMAGES_DIR = 'data/images'
 SAMPLE_WIDGETS_DIR = 'data/widgets'

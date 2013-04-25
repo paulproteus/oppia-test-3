@@ -18,22 +18,22 @@
 
 __author__ = 'Sean Lip'
 
-from apps.classifier.models import Classifier
-import test_utils
+from oppia.apps.classifier.models import Classifier
+from django.utils import unittest
 
 
-class ClassifierModelUnitTests(test_utils.AppEngineTestBase):
+class ClassifierModelUnitTests(unittest.TestCase):
     """Test the Classifier model."""
 
     def test_loading_and_deletion_of_classifiers(self):
         """Test loading and deletion of the default classifiers."""
-        self.assertEqual(Classifier.query().count(), 0)
+        self.assertEqual(Classifier.objects.count(), 0)
 
         Classifier.load_default_classifiers()
-        classifiers = Classifier.query()
+        classifiers = Classifier.objects.all()
         classifier_ids = [classifier.id for classifier in classifiers]
         self.assertIn('Coord2DClassifier', classifier_ids)
         self.assertEqual(classifiers.count(), 7)
 
         Classifier.delete_all_classifiers()
-        self.assertEqual(Classifier.query().count(), 0)
+        self.assertEqual(Classifier.objects.count(), 0)
