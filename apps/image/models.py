@@ -44,7 +44,7 @@ class Image(caching.base.CachingMixin, BaseModel):
     """An image."""
     # The raw image blob.
     raw = models.ImageField(upload_to='uploads/images')
-    alt_text = models.TextProperty(max_length=200, blank=True)
+    alt_text = models.TextField(max_length=200, blank=True)
     # The image file format. TODO(sll): auto-assign on put().
     format = models.CharField(
         max_length=10, choices=feconf.ACCEPTED_IMAGE_FORMATS, default='png')

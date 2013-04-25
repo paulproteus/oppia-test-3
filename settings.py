@@ -122,8 +122,6 @@ INSTALLED_APPS = (
     'django.contrib.staticfiles',
     'oppia.apps.base_model',
     'oppia.apps.image',
-    'oppia.apps.parameter',
-    'oppia.apps.widget',
     # Uncomment the next line to enable the admin:
     # 'django.contrib.admin',
     # Uncomment the next line to enable admin documentation:
