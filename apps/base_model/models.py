@@ -19,16 +19,14 @@ __author__ = 'Sean Lip'
 import base64
 import hashlib
 
-import utils
+from oppia import utils
 
-from google.appengine.ext import ndb
+from django.db import models
 
 
-class BaseModel(ndb.Model):
+class BaseModel(models.Model):
     """A model stub which has an explicit id property."""
-    @property
-    def id(self):
-        return self.key.id()
+    id = models.CharField(max_length=20, primary_key=True)
 
     @classmethod
     def get_new_id(cls, entity_name):
@@ -46,7 +44,7 @@ class BaseModel(ndb.Model):
                     '%s%s' % (entity_name.encode('utf-8'),
                               utils.get_random_int(RAND_RANGE))
                 ).digest())[:12]
-            if not cls.get_by_id(new_id):
+            if not cls.objects.get(id=new_id):
                 return new_id
 
         raise Exception('New id generator is producing too many collisions.')

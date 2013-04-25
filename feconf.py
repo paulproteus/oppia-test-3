@@ -115,7 +115,7 @@ END_DEST = 'END'
 # Default file name for newly-created files for download.
 DEFAULT_FILE_NAME = 'New file'
 
-ACCEPTED_IMAGE_FORMATS = ['gif', 'jpeg', 'png']
+ACCEPTED_IMAGE_FORMATS = [('gif', 'gif'), ('jpeg', 'jpeg'), ('png', 'png')]
 
 # Set this to True to allow file uploads via YAML in the gallery and editor pages.
 ALLOW_YAML_FILE_UPLOAD = False

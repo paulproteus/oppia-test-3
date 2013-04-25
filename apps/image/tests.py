@@ -16,32 +16,35 @@
 
 __author__ = 'Jeremy Emerson'
 
-from apps.image.models import Image
-import test_utils
+from oppia.apps.image.models import Image
+from django.utils import unittest
+from django.core.exceptions import ValidationError
+from django.core.files import File
 
-from google.appengine.ext.db import BadValueError
 
-
-class ImageUnitTests(test_utils.AppEngineTestBase):
+class ImageUnitTests(unittest.TestCase):
     """Test image models."""
 
     def test_image_class(self):
         """Test the Image class."""
         # An Image must have the 'raw' property set.
         image = Image(id='The hash id')
-        with self.assertRaises(BadValueError):
+        with self.assertRaises(ValidationError):
             image.put()
 
+        # TODO: image format validation.
         # The 'raw' property must be a valid image.
-        with self.assertRaises(AssertionError):
-            image.raw = 'The image'
+        # with self.assertRaises(AssertionError):
+        #     image.raw = 'The image'
 
         # Set the 'raw' property to be a valid image, then do a put().
-        with open('tests/data/img.png') as f:
-            image_file = f.read()
-        image.raw = image_file
-        image.put()
+        with open('oppia/tests/data/img.png') as f:
+            image.raw = File(f)
+            image_file_content = image.raw.read()
+            image.put()
 
         # Retrieve the image.
-        retrieved_image = Image.get_by_id('The hash id')
-        self.assertEqual(retrieved_image.raw, image_file)
+        retrieved_image = Image.objects.get(id='The hash id')
+        # Read its content
+        retrieved_content = retrieved_image.raw.read()
+        self.assertEqual(retrieved_content, image_file_content)
