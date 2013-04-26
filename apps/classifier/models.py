@@ -21,7 +21,8 @@ __author__ = 'Sean Lip'
 import os
 import json
 
-from oppia.apps.base_model.models import BaseModel, CustomTypeEncoder, decode_value
+from oppia.apps.base_model.models import BaseModel
+from oppia.apps.base_model.models import encode_value
 from oppia import feconf
 from oppia import utils
 
@@ -42,26 +43,21 @@ class RuleSpec(models.Model):
 
     def __setattr__(self, item, value):
         if item == 'checks':
-            self.value = value
             assert isinstance(value, list)
             if value:
-                assert isinstance(value[0], (str, unicode))
-            self.__dict__['_checks'] = json.dumps(value)
+                for val in value:
+                    assert isinstance(val, basestring)
+            self.__dict__['_checks'] = value
         else:
             self.__dict__[item] = value
 
     @property
     def checks(self):
-        """Construct a list of RuleSpec objects from the JSON object stored in _rules"""
+        """Construct a list of RuleSpec objects from the JSON object stored in _checks"""
         checks = []
-        for check in decode_value(self._checks):
+        for check in self._checks:
             checks.append(check)
         return checks
-
-
-class RulesEncoder(CustomTypeEncoder):
-    """A custom encoder to encode RuleSpec objects recursively."""
-    types = (RuleSpec)
 
 
 class Classifier(BaseModel):
@@ -79,8 +75,9 @@ class Classifier(BaseModel):
         if item == 'rules':
             assert isinstance(value, list)
             if value:
-                assert isinstance(value[0], RuleSpec)
-            self.__dict__['_rules'] = json.dumps(value, cls=RulesEncoder)
+                for val in value:
+                    assert isinstance(val, RuleSpec)
+            self.__dict__['_rules'] = encode_value(value)
         else:
             self.__dict__[item] = value
 
@@ -88,9 +85,9 @@ class Classifier(BaseModel):
     def rules(self):
         """Construct a list of RuleSpec objects from the JSON object stored in _rules"""
         rules = []
-        for rule in decode_value(self._rules):
-            rulespec = RuleSpec(rule=rule['__RuleSpec__']['rule'], name=rule['__RuleSpec__']['name'])
-            checks = rule['__RuleSpec__'].get('_checks', [])
+        for rule in json.loads(self._rules):
+            rulespec = RuleSpec(rule=rule['RuleSpec']['rule'], name=rule['RuleSpec']['name'])
+            checks = rule['RuleSpec'].get('_checks', [])
             if checks:
                 rulespec._checks = checks
             rules.append(rulespec)

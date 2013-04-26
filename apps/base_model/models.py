@@ -52,30 +52,21 @@ class BaseModel(models.Model):
         raise Exception('New id generator is producing too many collisions.')
 
 
-class CustomTypeEncoder(json.JSONEncoder):
-    """A custom JSONEncoder class that knows how to encode core custom
-    objects.
-
-    Custom objects are encoded as JSON object literals (ie, dicts) with
-    one key, '__TypeName__' where 'TypeName' is the actual name of the
-    type to which the object belongs.  That single key maps to another
-    object literal which is just the __dict__ of the object encoded."""
-
-    # A tuples consisting the classes of all the custom objects we will encode
-    types = None
-
-    def default(self, obj):
-        if isinstance(obj, self.types):
-            key = '__%s__' % obj.__class__.__name__
-            return {key: obj.__dict__}
-        # Every instance of a django model consists a ModelState instance inside it.
-        # We don't need the ModelState instance encoded. So we get rid of it.
-        if isinstance(obj, ModelState):
-            return {'ModelState': ''}
-        return json.JSONEncoder.default(self, obj)
-
-
-def decode_value(value):
-    while not isinstance(value, list):
-        value = json.loads(value)
-    return value
+def encode_value(obj):
+    if isinstance(obj, (int, long, float, complex, bool, basestring, type(None))):
+        return obj
+    elif isinstance(obj, list):
+        return [encode(item) for item in obj]
+    elif isinstance(obj, tuple):
+        return tuple([encode(item) for item in obj])
+    elif isinstance(obj, set):
+        return {encode(item) for item in obj}
+    elif isinstance(obj, dict):
+        result = {}
+        for key in obj:
+            if key != 'ModelState':
+                result[key] = encode(obj[key])
+        return result
+    else:
+        obj_dict = encode(obj.__dict__)
+        return {obj.__class__.__name__: obj_dict}
