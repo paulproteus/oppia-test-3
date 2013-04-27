@@ -52,21 +52,31 @@ class BaseModel(models.Model):
         raise Exception('New id generator is producing too many collisions.')
 
 
-def encode_value(obj):
-    if isinstance(obj, (int, long, float, complex, bool, basestring, type(None))):
-        return obj
-    elif isinstance(obj, list):
-        return [encode(item) for item in obj]
-    elif isinstance(obj, tuple):
-        return tuple([encode(item) for item in obj])
-    elif isinstance(obj, set):
-        return {encode(item) for item in obj}
-    elif isinstance(obj, dict):
-        result = {}
-        for key in obj:
-            if key != 'ModelState':
-                result[key] = encode(obj[key])
-        return result
-    else:
-        obj_dict = encode(obj.__dict__)
-        return {obj.__class__.__name__: obj_dict}
+class Converter():
+    """A class containing different encoder/decoder functions."""
+
+    @classmethod
+    def encode(cls, obj):
+        """A custom encoder to encode both built in and custom objects into JSON
+        serializable python objects recursively.
+
+        Custom objects are encoded as dict with one key, '__TypeName__' where
+        'TypeName' is the actual name of the class to which the object belongs.
+        That single key maps to another dict which is just the encoded __dict__
+        of the object being encoded."""
+
+        if isinstance(obj, (int, long, float, complex, bool, basestring, type(None))):
+            return obj
+        elif isinstance(obj, list):
+            return [cls.encode(item) for item in obj]
+        elif isinstance(obj, (set, tuple, complex)):
+            raise NotImplementedError
+        elif isinstance(obj, dict):
+            result = {}
+            for key in obj:
+                if key != 'ModelState':
+                    result[key] = cls.encode(obj[key])
+            return result
+        else:
+            obj_dict = cls.encode(obj.__dict__)
+            return {'__{0}__'.format(obj.__class__.__name__): obj_dict}

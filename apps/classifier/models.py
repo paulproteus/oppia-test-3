@@ -19,15 +19,14 @@
 __author__ = 'Sean Lip'
 
 import os
-import json
 
 from oppia.apps.base_model.models import BaseModel
-from oppia.apps.base_model.models import encode_value
+from oppia.apps.base_model.models import Converter
 from oppia import feconf
 from oppia import utils
 
 from django.db import models
-from jsonfield import JSONField
+from json_field import JSONField
 
 
 class RuleSpec(models.Model):
@@ -39,7 +38,7 @@ class RuleSpec(models.Model):
     name = models.TextField(blank=True)
     # Python code for pre-commit checks on the rule parameters.
     # JSON object containing a list of checks
-    _checks = JSONField()
+    checks = JSONField(default=[])
 
     def __setattr__(self, item, value):
         if item == 'checks':
@@ -47,17 +46,9 @@ class RuleSpec(models.Model):
             if value:
                 for val in value:
                     assert isinstance(val, basestring)
-            self.__dict__['_checks'] = value
+            self.__dict__['checks'] = value
         else:
             self.__dict__[item] = value
-
-    @property
-    def checks(self):
-        """Construct a list of RuleSpec objects from the JSON object stored in _checks"""
-        checks = []
-        for check in self._checks:
-            checks.append(check)
-        return checks
 
 
 class Classifier(BaseModel):
@@ -77,7 +68,7 @@ class Classifier(BaseModel):
             if value:
                 for val in value:
                     assert isinstance(val, RuleSpec)
-            self.__dict__['_rules'] = encode_value(value)
+            self.__dict__['_rules'] = Converter.encode(value)
         else:
             self.__dict__[item] = value
 
@@ -85,11 +76,11 @@ class Classifier(BaseModel):
     def rules(self):
         """Construct a list of RuleSpec objects from the JSON object stored in _rules"""
         rules = []
-        for rule in json.loads(self._rules):
-            rulespec = RuleSpec(rule=rule['RuleSpec']['rule'], name=rule['RuleSpec']['name'])
-            checks = rule['RuleSpec'].get('_checks', [])
-            if checks:
-                rulespec._checks = checks
+        for rule in self._rules:
+            rulespec = RuleSpec(
+                rule=rule['__RuleSpec__']['rule'], name=rule['__RuleSpec__']['name'],
+                checks=rule['__RuleSpec__']['checks']
+            )
             rules.append(rulespec)
         return rules
 
