@@ -123,6 +123,7 @@ INSTALLED_APPS = (
     'oppia.apps.base_model',
     'oppia.apps.image',
     'oppia.apps.classifier',
+    'oppia.apps.types',
     'json_field',
     # Uncomment the next line to enable the admin:
     # 'django.contrib.admin',

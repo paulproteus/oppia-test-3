@@ -16,9 +16,10 @@
 
 __author__ = 'Sean Lip'
 
-from data.objects.models import objects
+from oppia.data.objects.models import objects
 
-from google.appengine.ext import ndb
+from django.db import models
+from json_field import JSONField
 
 
 def get_object_class(cls_name):
@@ -34,7 +35,7 @@ def get_object_class(cls_name):
     return object_class
 
 
-class TypedInstance(ndb.Model):
+class TypedInstance(models.Model):
     """Represents an instance of a typed object."""
     def _pre_put_hook(self):
         """Does validation before the model is put into the datastore.
@@ -47,23 +48,28 @@ class TypedInstance(ndb.Model):
         return object_class.normalize(self.value)
 
     # The name of the object's class.
-    obj_type = ndb.StringProperty(required=True)
+    obj_type = models.CharField(max_length=100)
     # A normalized Python representation of the instance's value.
-    value = ndb.JsonProperty()
+    value = JSONField()
+
+    def put(self):
+        self.full_clean()
+        self._pre_put_hook()
+        self.save()
 
 
-class TypedInstanceProperty(ndb.StructuredProperty):
-    """Represents an instance of a typed object."""
-    def __init__(self, **kwds):
-        super(TypedInstanceProperty, self).__init__(TypedInstance, **kwds)
+# class TypedInstanceProperty(ndb.StructuredProperty):
+#     """Represents an instance of a typed object."""
+#     def __init__(self, **kwds):
+#         super(TypedInstanceProperty, self).__init__(TypedInstance, **kwds)
 
-    def _validate(self, val):
-        object_class = get_object_class(val.obj_type)
-        return TypedInstance(
-            obj_type=val.obj_type, value=object_class.normalize(val.value))
+#     def _validate(self, val):
+#         object_class = get_object_class(val.obj_type)
+#         return TypedInstance(
+#             obj_type=val.obj_type, value=object_class.normalize(val.value))
 
-    def _to_base_type(self, val):
-        return TypedInstance(obj_type=val.obj_type, value=val.value)
+#     def _to_base_type(self, val):
+#         return TypedInstance(obj_type=val.obj_type, value=val.value)
 
-    def _from_base_type(self, val):
-        return TypedInstance(obj_type=val.obj_type, value=val.value)
+#     def _from_base_type(self, val):
+#         return TypedInstance(obj_type=val.obj_type, value=val.value)

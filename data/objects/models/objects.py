@@ -20,7 +20,7 @@ __author__ = 'Sean Lip'
 
 import numbers
 
-import feconf
+from oppia import feconf
 from lxml.html.clean import clean_html
 
 
