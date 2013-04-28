@@ -62,7 +62,8 @@ class Classifier(BaseModel):
     _rules = JSONField()
 
     def __setattr__(self, item, value):
-        """We encode a list of RuleSpec objects into a JSON object using RulesEncoder"""
+        """We encode a list of RuleSpec objects into a JSON object using
+        RulesEncoder"""
         if item == 'rules':
             assert isinstance(value, list)
             if value:
@@ -74,11 +75,13 @@ class Classifier(BaseModel):
 
     @property
     def rules(self):
-        """Construct a list of RuleSpec objects from the JSON object stored in _rules"""
+        """Construct a list of RuleSpec objects from the JSON object stored
+        in _rules"""
         rules = []
         for rule in self._rules:
             rulespec = RuleSpec(
-                rule=rule['__RuleSpec__']['rule'], name=rule['__RuleSpec__']['name'],
+                rule=rule['__RuleSpec__']['rule'],
+                name=rule['__RuleSpec__']['name'],
                 checks=rule['__RuleSpec__']['checks']
             )
             rules.append(rulespec)

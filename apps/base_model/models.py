@@ -18,12 +18,10 @@ __author__ = 'Sean Lip'
 
 import base64
 import hashlib
-import json
 
 from oppia import utils
 
 from django.db import models
-from django.db.models.base import ModelState
 
 
 class BaseModel(models.Model):
@@ -57,15 +55,17 @@ class Converter():
 
     @classmethod
     def encode(cls, obj):
-        """A custom encoder to encode both built in and custom objects into JSON
-        serializable python objects recursively.
+        """A custom encoder to encode both built-in and custom objects into
+        JSON-serializable python objects recursively.
 
         Custom objects are encoded as dict with one key, '__TypeName__' where
         'TypeName' is the actual name of the class to which the object belongs.
         That single key maps to another dict which is just the encoded __dict__
         of the object being encoded."""
 
-        if isinstance(obj, (int, long, float, complex, bool, basestring, type(None))):
+        if isinstance(
+            obj, (int, long, float, complex, bool, basestring, type(None))
+        ):
             return obj
         elif isinstance(obj, list):
             return [cls.encode(item) for item in obj]
@@ -74,9 +74,12 @@ class Converter():
         elif isinstance(obj, dict):
             result = {}
             for key in obj:
-                if key != 'ModelState':
+                # Every Model instance in django has a ModelState object,
+                # which we don't want to be serialized. Hence, we get rid
+                # of it.
+                if key != '__ModelState__':
                     result[key] = cls.encode(obj[key])
             return result
         else:
             obj_dict = cls.encode(obj.__dict__)
-            return {'__{0}__'.format(obj.__class__.__name__): obj_dict}
+            return {'__%s__' % (obj.__class__.__name__): obj_dict}

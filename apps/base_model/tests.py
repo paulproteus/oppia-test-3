@@ -16,17 +16,17 @@
 
 """Tests for the BaseModel and Converter."""
 
-__author__ = 'Sean Lip'
+__author__ = 'Tarashish Mishra'
 
 from oppia.apps.base_model.models import Converter
 from django.utils import unittest
 
 
 class ConverterUnitTests(unittest.TestCase):
-    """Test the Coverter class."""
+    """Test the Converter class."""
 
     def test_encoding_builtin_types(self):
-        """Test encoding of builtin datatypes."""
+        """Test encoding of built-in datatypes."""
         value = 'test string'
         encoded_value = Converter.encode(value)
         self.assertEqual(encoded_value, u'test string')
@@ -68,17 +68,25 @@ class ConverterUnitTests(unittest.TestCase):
 
         value = [A(3), A(5)]
         encoded_value = Converter.encode(value)
-        self.assertEqual(encoded_value, [{'__A__': {'a': 3}}, {'__A__': {'a': 5}}])
+        self.assertEqual(
+            encoded_value, [{'__A__': {'a': 3}}, {'__A__': {'a': 5}}]
+        )
 
         value = [A(B(2)), A(B(3))]
         encoded_value = Converter.encode(value)
-        self.assertEqual(encoded_value, [{'__A__': {'a': {'__B__': {'b': 2}}}}, {'__A__': {'a': {'__B__': {'b': 3}}}}])
+        self.assertEqual(
+            encoded_value,
+            [{'__A__': {'a': {'__B__': {'b': 2}}}},
+             {'__A__': {'a': {'__B__': {'b': 3}}}}]
+        )
 
         value = {1: [A(B(2)), A(B(3))], 2: [A(B(4)), A(B(5))]}
         encoded_value = Converter.encode(value)
         self.assertEqual(
             encoded_value,
             {
-                1: [{'__A__': {'a': {'__B__': {'b': 2}}}}, {'__A__': {'a': {'__B__': {'b': 3}}}}],
-                2: [{'__A__': {'a': {'__B__': {'b': 4}}}}, {'__A__': {'a': {'__B__': {'b': 5}}}}]
+                1: [{'__A__': {'a': {'__B__': {'b': 2}}}},
+                    {'__A__': {'a': {'__B__': {'b': 3}}}}],
+                2: [{'__A__': {'a': {'__B__': {'b': 4}}}},
+                    {'__A__': {'a': {'__B__': {'b': 5}}}}]
             })
