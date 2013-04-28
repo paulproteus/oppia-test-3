@@ -69,6 +69,9 @@ oppia.factory('explorationData', function($rootScope, $http, $resource, warnings
 
   // TODO(sll): Find a fix for multiple users editing the same exploration
   // concurrently.
+  explorationData.get = function() {
+    return $http.get(explorationUrl + '/data');
+  };
 
   explorationData.getData = function() {
     // Retrieve data from the server.
@@ -98,16 +101,25 @@ oppia.factory('explorationData', function($rootScope, $http, $resource, warnings
   };
 
   explorationData.getStateData = function(stateId) {
+    // Returns the data for the given state, or a promise that supplies it.
     if (!stateId) {
       return;
     }
     console.log('Getting state data for state ' + stateId);
     explorationData.stateId = stateId;
-    if ('states' in explorationData.data && stateId in explorationData.data.states) {
+    console.log(explorationData.data);
+
+    if (explorationData.data && 'states' in explorationData.data &&
+        stateId in explorationData.data.states) {
       return explorationData.data.states[stateId];
     } else {
-      explorationData.getData();
-      return explorationData.data.states[stateId];
+      console.log('Retrieving data from server.');
+      return explorationData.get().then(function(response) {
+        console.log('Received data from server.');
+        console.log(response.data);
+        explorationData.data = response.data;
+        return explorationData.data.states[stateId];
+      });
     }
   };
 
@@ -228,7 +240,7 @@ function EditorExploration($scope, $http, $location, $route, $routeParams,
   // Changes the location hash when the editorView tab is changed.
   $('#editorViewTab a[data-toggle="tab"]').on('shown', function (e) {
     if (e.target.hash == '#stateEditor') {
-      explorationData.broadcastState(explorationData.stateId);
+      explorationData.getStateData(explorationData.stateId);
       $scope.changeMode($scope.getMode());
     } else {
       $location.path('');
@@ -269,6 +281,10 @@ function EditorExploration($scope, $http, $location, $route, $routeParams,
       'numCompletions': data.num_completions,
       'stateStats': data.state_stats
     };
+
+    $scope.chartData = [['', 'Completions', 'Non-completions'],['', data.num_completions, data.num_visits - data.num_completions]];
+    $scope.chartColors = ['green', 'firebrick'];
+    $scope.ruleChartColors = ['cornflowerblue', 'transparent'];
 
     explorationFullyLoaded = true;
 

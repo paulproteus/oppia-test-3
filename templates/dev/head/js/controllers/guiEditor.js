@@ -54,14 +54,30 @@ function GuiEditor($scope, $http, $routeParams, explorationData, warningsData, a
   };
 
   // Initializes the GuiEditor.
-  $scope.init(explorationData.getStateData($scope.$parent.stateId));
-  console.log('Initializing GUI editor');
+  if ($scope.$parent.stateId) {
+    var dataOrPromise = explorationData.getStateData($scope.$parent.stateId);
+    console.log(dataOrPromise);
+    if (dataOrPromise) {
+      if ('then' in dataOrPromise) {
+        console.log('Initializing GUI editor after delay');
+        dataOrPromise.then($scope.init);
+      } else {
+        console.log('Initializing GUI editor');
+        $scope.init(dataOrPromise);
+      }
+    } else {
+      console.log('No state data exists for state ' + $scope.$parent.stateId);
+    }
+  }
 
   $scope.$on('explorationData', function() {
     // TODO(sll): Does this actually receive anything?
     console.log('Init content');
-    $scope.init(explorationData.getStateData($scope.$parent.stateId));
-    $scope.updateMath();
+    var dataOrPromise = explorationData.getStateData($scope.$parent.stateId);
+    if (dataOrPromise) {
+      $scope.init(explorationData.getStateData($scope.$parent.stateId));
+      $scope.updateMath();
+    }
   });
 
   var editors = {};
