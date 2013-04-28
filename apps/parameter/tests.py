@@ -16,26 +16,24 @@
 
 __author__ = 'Sean Lip'
 
-import test_utils
-from apps.parameter.models import Parameter
+from django.utils import unittest
+from oppia.apps.parameter.models import Parameter
 
 
-class ParameterUnitTests(test_utils.AppEngineTestBase):
+class ParameterUnitTests(unittest.TestCase):
     """Test the Parameter class."""
 
     def test_parameter_class(self):
         """Tests the Parameter class."""
-        model = Parameter(name='param1', values=['hello'])
         # Raise an error because no obj_type is specified.
         with self.assertRaises(TypeError):
-            model.put()
+            model = Parameter(name='param1', values=['hello'])
 
-        model.obj_type = 'Int'
         # Raise an error because the value does not match the obj_type.
         with self.assertRaises(TypeError):
-            model.put()
+            model = Parameter(name='param1', obj_type='Int', values=['hello'])
 
-        model.values = [6]
+        model = Parameter(name='param1', obj_type='Int', values=[6])
         model.put()
 
         self.assertEqual(model.value, 6)
