@@ -19,7 +19,6 @@ __author__ = 'Sean Lip'
 from django.utils import unittest
 from oppia.apps.types.models import get_object_class
 from oppia.apps.types.models import TypedInstance
-# from oppia.apps.types.models import TypedInstanceProperty
 
 from oppia.data.objects.models import objects
 
@@ -54,15 +53,3 @@ class TypedInstanceUnitTests(unittest.TestCase):
             model.put()
         model.value = 1
         model.put()
-
-    # def test_typed_instance_property(self):
-    #     class StructuredTestModel(ndb.Model):
-    #         typed_instance = TypedInstanceProperty(required=True)
-
-    #     model = TypedInstance(obj_type='Int', value='Bad value')
-    #     with self.assertRaises(TypeError):
-    #         structured_model = StructuredTestModel(typed_instance=model)
-
-    #     model.value = 1
-    #     structured_model = StructuredTestModel(typed_instance=model)
-    #     structured_model.put()

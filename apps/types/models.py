@@ -56,20 +56,3 @@ class TypedInstance(models.Model):
         self.full_clean()
         self._pre_put_hook()
         self.save()
-
-
-# class TypedInstanceProperty(ndb.StructuredProperty):
-#     """Represents an instance of a typed object."""
-#     def __init__(self, **kwds):
-#         super(TypedInstanceProperty, self).__init__(TypedInstance, **kwds)
-
-#     def _validate(self, val):
-#         object_class = get_object_class(val.obj_type)
-#         return TypedInstance(
-#             obj_type=val.obj_type, value=object_class.normalize(val.value))
-
-#     def _to_base_type(self, val):
-#         return TypedInstance(obj_type=val.obj_type, value=val.value)
-
-#     def _from_base_type(self, val):
-#         return TypedInstance(obj_type=val.obj_type, value=val.value)

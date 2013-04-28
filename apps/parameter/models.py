@@ -76,29 +76,6 @@ class Parameter(models.Model):
         self.save()
 
 
-# class ParameterProperty(ndb.LocalStructuredProperty):
-#     """Represents a multi-valued parameter."""
-#     def __init__(self, **kwds):
-#         super(ParameterProperty, self).__init__(Parameter, **kwds)
-
-#     def _validate(self, val):
-#         object_class = get_object_class(val.obj_type)
-#         return Parameter(
-#             obj_type=val.obj_type,
-#             values=[object_class.normalize(value) for value in val.values],
-#             name=val.name, description=val.description)
-
-#     def _to_base_type(self, val):
-#         return Parameter(
-#             obj_type=val.obj_type, values=val.values, name=val.name,
-#             description=val.description)
-
-#     def _from_base_type(self, val):
-#         return Parameter(
-#             obj_type=val.obj_type, values=val.values, name=val.name,
-#             description=val.description)
-
-
 class ParamChange(Parameter):
     """Represents a change to a multi-valued parameter.
 
@@ -113,49 +90,25 @@ class ParamChange(Parameter):
     description = None
 
 
-# class ParamChangeProperty(ndb.LocalStructuredProperty):
-#     """Represents a parameter change."""
-#     def __init__(self, **kwds):
-#         super(ParamChangeProperty, self).__init__(ParamChange, **kwds)
-
-#     def _validate(self, val):
-#         # Parent classes must do validation to check that the object type here
-#         # matches the object type of the parameter with the corresponding name.
-#         object_class = get_object_class(val.obj_type)
-#         return ParamChange(
-#             obj_type=val.obj_type, name=val.name,
-#             values=[object_class.normalize(value) for value in val.values])
-
-#     def _to_base_type(self, val):
-#         return ParamChange(
-#             obj_type=val.obj_type, name=val.name, values=val.values)
-
-#     def _from_base_type(self, val):
-#         return ParamChange(
-#             obj_type=val.obj_type, name=val.name, values=val.values)
-
-
 class ParamSet(models.Model):
     """A list of parameters."""
-    # An ordered list of parameters.
+    # List of Parameter objects. An ordered list of parameters.
     _params = JSONField()
 
     def __setattr__(self, item, value):
         """We encode a list of Parameter objects into a JSON object using
         Converter.encode"""
-        if item == 'rules':
+        if item == 'params':
             assert isinstance(value, list)
-            if value:
-                for val in value:
-                    assert isinstance(val, Parameter)
+            for val in value:
+                assert isinstance(val, Parameter)
             self.__dict__['_params'] = Converter.encode(value)
         else:
             self.__dict__[item] = value
 
     @property
     def params(self):
-        """Construct a list of Parameter objects from the JSON object stored
-        in _params"""
+        """Return a list of Parameter objects from JSON object stored in _params"""
         params = []
         for parameter in self._params:
             param = Parameter(
