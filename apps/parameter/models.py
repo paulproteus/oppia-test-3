@@ -20,6 +20,7 @@ import re
 
 from oppia.apps.types.models import get_object_class
 from oppia.apps.base_model.models import Converter
+from oppia.apps.base_model.models import django_internal_attrs
 from oppia import utils
 
 from django.db import models
@@ -67,8 +68,12 @@ class Parameter(models.Model):
             object_class = get_object_class(self.obj_type)
             values = [object_class.normalize(elem) for elem in value]
             self.__dict__['values'] = values
-        else:
+        elif item in django_internal_attrs or [
+            'name', 'description', 'values'
+        ]:
             self.__dict__[item] = value
+        else:
+            raise AttributeError
 
     def put(self):
         self.full_clean()
@@ -103,8 +108,11 @@ class ParamSet(models.Model):
             for val in value:
                 assert isinstance(val, Parameter)
             self.__dict__['_params'] = Converter.encode(value)
-        else:
+        elif item in django_internal_attrs or ['_params']:
             self.__dict__[item] = value
+        else:
+            print item
+            raise AttributeError
 
     @property
     def params(self):

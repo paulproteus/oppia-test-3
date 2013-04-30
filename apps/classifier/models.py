@@ -21,6 +21,7 @@ __author__ = 'Sean Lip'
 import os
 
 from oppia.apps.base_model.models import BaseModel
+from oppia.apps.base_model.models import django_internal_attrs
 from oppia.apps.base_model.models import Converter
 from oppia import feconf
 from oppia import utils
@@ -47,8 +48,12 @@ class RuleSpec(models.Model):
                 for val in value:
                     assert isinstance(val, basestring)
             self.__dict__['checks'] = value
-        else:
+        elif item in django_internal_attrs or [
+            'name', 'rule'
+        ]:
             self.__dict__[item] = value
+        else:
+            raise AttributeError
 
 
 class Classifier(BaseModel):
@@ -70,8 +75,10 @@ class Classifier(BaseModel):
                 for val in value:
                     assert isinstance(val, RuleSpec)
             self.__dict__['_rules'] = Converter.encode(value)
-        else:
+        elif item in django_internal_attrs or ['_rules']:
             self.__dict__[item] = value
+        else:
+            raise AttributeError
 
     @property
     def rules(self):
