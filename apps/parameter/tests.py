@@ -18,6 +18,7 @@ __author__ = 'Sean Lip'
 
 from django.utils import unittest
 from oppia.apps.parameter.models import Parameter
+from oppia.apps.parameter.models import ParamSet
 
 
 class ParameterUnitTests(unittest.TestCase):
@@ -41,3 +42,23 @@ class ParameterUnitTests(unittest.TestCase):
         model.values = []
         model.put()
         self.assertIsNone(model.value)
+
+
+class ParamSetUnitTests(unittest.TestCase):
+    """Test the ParamSet class."""
+
+    def test_paramset_class(self):
+        """Test the ParamSet class."""
+
+        param1 = Parameter(name='param1', obj_type='Int', values=[6])
+        param2 = Parameter(name='param2', obj_type='Int', values=[8])
+
+        params = [param1, param2]
+        paramset = ParamSet(params=params)
+        paramset.put()
+
+        assert isinstance(paramset.params, list)
+
+        self.assertEqual(len(paramset.params), 2)
+        for param in paramset.params:
+            assert isinstance(param, Parameter)

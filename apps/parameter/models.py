@@ -119,3 +119,7 @@ class ParamSet(models.Model):
             )
             params.append(param)
         return params
+
+    def put(self):
+        self.full_clean()
+        self.save()
