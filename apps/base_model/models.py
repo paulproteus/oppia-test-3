@@ -84,44 +84,8 @@ class Converter():
             obj_dict = cls.encode(obj.__dict__)
             return {'__%s__' % (obj.__class__.__name__): obj_dict}
 
-django_internal_attrs = [
-    'DoesNotExist',
-    'MultipleObjectsReturned',
-    '_base_manager',
-    '_default_manager',
-    '_deferred',
-    '_get_FIELD_display',
-    '_get_next_or_previous_by_FIELD',
-    '_get_next_or_previous_in_order',
-    '_get_pk_val',
-    '_get_unique_checks',
-    '_json_field_cache',
-    '_meta',
-    '_original_pk',
-    '_perform_date_checks',
-    '_perform_unique_checks',
-    '_rules',
-    '_set_pk_val',
-    '_state',
-    'basemodel_ptr',
-    'basemodel_ptr_id',
-    'clean',
-    'clean_fields',
-    'date_error_message',
-    'delete',
-    'full_clean',
-    'get_new_id',
-    'id',
-    'image',
-    'objects',
-    'pk',
-    'prepare_database_save',
-    'put',
-    'rules',
-    'save',
-    'save_base',
-    'serializable_value',
-    'set__rules_json',
-    'unique_error_message',
-    'validate_unique'
-]
+
+class DummyModel(models.Model):
+    pass
+
+django_internal_attrs = dir(DummyModel)

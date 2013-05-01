@@ -73,7 +73,7 @@ class Parameter(models.Model):
         ]:
             self.__dict__[item] = value
         else:
-            raise AttributeError
+            raise AttributeError(item)
 
     def put(self):
         self.full_clean()
@@ -111,8 +111,7 @@ class ParamSet(models.Model):
         elif item in django_internal_attrs or ['_params']:
             self.__dict__[item] = value
         else:
-            print item
-            raise AttributeError
+            raise AttributeError(item)
 
     @property
     def params(self):

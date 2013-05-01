@@ -53,7 +53,7 @@ class RuleSpec(models.Model):
         ]:
             self.__dict__[item] = value
         else:
-            raise AttributeError
+            raise AttributeError(item)
 
 
 class Classifier(BaseModel):
@@ -78,7 +78,7 @@ class Classifier(BaseModel):
         elif item in django_internal_attrs or ['_rules']:
             self.__dict__[item] = value
         else:
-            raise AttributeError
+            raise AttributeError(item)
 
     @property
     def rules(self):
