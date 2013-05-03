@@ -48,8 +48,8 @@ class RuleSpec(models.Model):
                 for val in value:
                     assert isinstance(val, basestring)
             self.__dict__['checks'] = value
-        elif item in django_internal_attrs or [
-            'name', 'rule'
+        elif item in django_internal_attrs or item in [
+            'name', 'rule', '_json_field_cache'
         ]:
             self.__dict__[item] = value
         else:

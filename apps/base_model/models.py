@@ -88,4 +88,6 @@ class Converter():
 class DummyModel(models.Model):
     pass
 
-django_internal_attrs = dir(DummyModel)
+dummymodel = DummyModel()
+
+django_internal_attrs = dir(dummymodel)

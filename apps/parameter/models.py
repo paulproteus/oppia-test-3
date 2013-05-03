@@ -68,8 +68,8 @@ class Parameter(models.Model):
             object_class = get_object_class(self.obj_type)
             values = [object_class.normalize(elem) for elem in value]
             self.__dict__['values'] = values
-        elif item in django_internal_attrs or [
-            'name', 'description', 'values'
+        elif item in django_internal_attrs or item in [
+            'name', 'description', 'values', '_json_field_cache'
         ]:
             self.__dict__[item] = value
         else:
@@ -108,7 +108,7 @@ class ParamSet(models.Model):
             for val in value:
                 assert isinstance(val, Parameter)
             self.__dict__['_params'] = Converter.encode(value)
-        elif item in django_internal_attrs or ['_params']:
+        elif item in django_internal_attrs or item in ['_params', '_json_field_cache']:
             self.__dict__[item] = value
         else:
             raise AttributeError(item)
