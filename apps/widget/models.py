@@ -21,62 +21,99 @@ __author__ = 'Sean Lip'
 import copy
 import os
 
-from apps.classifier.models import Classifier
-from apps.parameter.models import Parameter
-from apps.parameter.models import ParameterProperty
-import feconf
-import utils
+from oppia.apps.base_model.models import Converter
+from oppia.apps.base_model.models import django_internal_attrs
+from oppia.apps.classifier.models import Classifier
+from oppia.apps.parameter.models import Parameter
+from oppia import feconf
+from oppia import utils
 
-from google.appengine.ext import ndb
-from google.appengine.ext.db import BadValueError
-from google.appengine.ext.ndb import polymodel
+from django.db import models
+from django.core.exceptions import ValidationError
+from json_field import JSONField
 
 
-class AnswerHandler(ndb.Model):
+class AnswerHandler(models.Model):
     """An answer event stream (submit, click, drag, etc.)."""
-    name = ndb.StringProperty(default='submit')
+    name = models.CharField(max_length=30, default='submit')
     # TODO(sll): Store a reference instead?
-    classifier = ndb.StringProperty(choices=Classifier.get_classifier_ids())
+    classifier_ids = Classifier.get_classifier_ids()
+    classifier = models.CharField(
+        max_length=200,
+        choices=zip(classifier_ids, classifier_ids),
+        blank=True
+    )
 
     @property
     def rules(self):
         if not self.classifier:
             return []
-        return Classifier.get_by_id(self.classifier).rules
+        return Classifier.objects.get(id=self.classifier).rules
+
+    def put(self):
+        self.full_clean()
+        self.save()
 
 
-class Widget(polymodel.PolyModel):
+class Widget(models.Model):
     """A superclass for NonInteractiveWidget and InteractiveWidget.
 
     NB: The ids for this class are strings that are camel-cased versions of the
     human-readable names.
     """
-    @property
-    def id(self):
-        return self.key.id()
 
+    id = models.CharField(max_length=100, primary_key=True)
     # The human-readable name of the widget.
-    name = ndb.StringProperty(required=True)
+    name = models.CharField(max_length=50)
     # The category in the widget repository to which this widget belongs.
-    category = ndb.StringProperty(required=True)
+    category = models.CharField(max_length=50)
     # The description of the widget.
-    description = ndb.TextProperty()
+    description = models.TextField(blank=True)
     # The widget html template (this is the entry point).
-    template = ndb.TextProperty(required=True)
+    template = models.TextField()
     # Parameter specifications for this widget. The default parameters can be
     # overridden when the widget is used within a State.
-    params = ParameterProperty(repeated=True)
+    # List of Parameter objects. An ordered list of parameters.
+    _params = JSONField(default=[], blank=True)
+
+    def __setattr__(self, item, value):
+        """We encode a list of Parameter objects into a JSON object using
+        Converter.encode"""
+        if item == 'params':
+            assert isinstance(value, list)
+            for val in value:
+                assert isinstance(val, Parameter)
+            self.__dict__['_params'] = Converter.encode(value)
+        elif item in django_internal_attrs or item in ['name', 'category', 'description', 'template', '_params', '_json_field_cache', '_widget_ptr_cache', 'widget_ptr_id']:
+            self.__dict__[item] = value
+        else:
+            raise AttributeError(item)
+
+    @property
+    def params(self):
+        """Return a list of Parameter objects from JSON object stored in _params"""
+        params = []
+        for parameter in self._params:
+            param = Parameter(
+                name=parameter['__Parameter__']['name'],
+                description=parameter['__Parameter__']['description'],
+                obj_type=parameter['__Parameter__']['obj_type'],
+                values=parameter['__Parameter__']['values']
+            )
+            params.append(param)
+        return params
 
     @classmethod
     def get(cls, widget_id):
         """Gets a widget by id. If it does not exist, returns None."""
-        return cls.get_by_id(widget_id)
+        return cls.objects.get(id=widget_id)
 
     def put(self):
         """The put() method should only be called on subclasses of Widget."""
         if self.__class__.__name__ == 'Widget':
             raise NotImplementedError
-        super(Widget, self).put()
+        self.full_clean()
+        self.save()
 
     @classmethod
     def get_raw_code(cls, widget_id, params=None):
@@ -92,7 +129,6 @@ class Widget(polymodel.PolyModel):
             (param.name, params.get(
                 param.name, utils.convert_to_js_string(param.value))
             ) for param in widget.params)
-
         return utils.parse_with_jinja(widget.template, parameters)
 
     @classmethod
@@ -105,7 +141,7 @@ class Widget(polymodel.PolyModel):
             raise NotImplementedError
 
         widget = cls.get(widget_id)
-        result = copy.deepcopy(widget.to_dict(exclude=['class_']))
+        result = copy.deepcopy(widget.to_dict())
         result.update({
             'id': widget_id,
             'raw': cls.get_raw_code(widget_id, params),
@@ -116,12 +152,22 @@ class Widget(polymodel.PolyModel):
         })
         return result
 
+    def to_dict(self):
+        output = {}
+        for key in ['name', 'category', 'description', 'template']:
+            output[key] = getattr(self, key)
+
+        output['params'] = getattr(self, '_params')
+        output['handlers'] = getattr(self, '_handlers')
+
+        return output
+
     @classmethod
     def delete_all_widgets(cls):
         """Deletes all widgets."""
-        widget_list = Widget.query()
+        widget_list = Widget.objects.all()
         for widget in widget_list:
-            widget.key.delete()
+            widget.delete()
 
 
 class NonInteractiveWidget(Widget):
@@ -137,18 +183,48 @@ class NonInteractiveWidget(Widget):
 class InteractiveWidget(Widget):
     """A generic interactive widget."""
 
-    handlers = ndb.StructuredProperty(AnswerHandler, repeated=True)
+    # List of AnswerHandler objects stored in a JSON object.
+    _handlers = JSONField(default=[])
+
+    def __setattr__(self, item, value):
+        """We encode a list of AnswerHandler objects into a JSON object using
+        Converter.encode"""
+
+        if item == 'handlers':
+            assert isinstance(value, list)
+            if not value:
+                raise ValidationError('%s must be a non-empty list' % item)
+            for val in value:
+                assert isinstance(val, AnswerHandler)
+            self.__dict__['_handlers'] = Converter.encode(value)
+        elif item in django_internal_attrs or item in ['_handlers']:
+            self.__dict__[item] = value
+        else:
+            super(InteractiveWidget, self).__setattr__(item, value)
+
+    @property
+    def handlers(self):
+        """Return a list of AnswerHandler objects from JSON object stored in _handlers"""
+        handlers = []
+        for handler in self._handlers:
+            anshandler = AnswerHandler(
+                name=handler['__AnswerHandler__'].get('name'),
+            )
+            anshandler.classifier_ids = handler['__AnswerHandler__'].get('classifier_ids', [])
+            anshandler.classifier = handler['__AnswerHandler__'].get('classifier', '')
+            handlers.append(anshandler)
+        return handlers
 
     def _pre_put_hook(self):
         # Checks that at least one handler exists.
         if not self.handlers:
-            raise BadValueError(
+            raise ValidationError(
                 'Widget %s has no handlers defined' % self.name)
 
         # Checks that all handler names are unique.
         names = [handler.name for handler in self.handlers]
         if len(set(names)) != len(names):
-            raise BadValueError(
+            raise ValidationError(
                 'There are duplicate names in the handler for widget %s'
                 % self.id)
 
@@ -201,3 +277,18 @@ class InteractiveWidget(Widget):
                 for rule in handler.rules)
 
         return result
+
+    @classmethod
+    def delete_all_widgets(cls):
+        """Deletes all widgets."""
+        widget_list = InteractiveWidget.objects.all()
+        for widget in widget_list:
+            widget.delete()
+
+    def put(self):
+        """The put() method should only be called on subclasses of Widget."""
+        if self.__class__.__name__ == 'Widget':
+            raise NotImplementedError
+        self._pre_put_hook()
+        self.full_clean()
+        self.save()

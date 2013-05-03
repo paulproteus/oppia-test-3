@@ -79,7 +79,7 @@ THIRD_PARTY_DIR = 'third_party'
 SAMPLE_CLASSIFIERS_DIR = 'oppia/data/classifiers'
 SAMPLE_EXPLORATIONS_DIR = 'data/explorations'
 SAMPLE_IMAGES_DIR = 'data/images'
-SAMPLE_WIDGETS_DIR = 'data/widgets'
+SAMPLE_WIDGETS_DIR = 'oppia/data/widgets'
 
 OBJECT_TEMPLATES_DIR = 'data/objects/templates'
 
