@@ -22,9 +22,10 @@
   $scope.$parent.stateId = $routeParams.stateId;
 
   // Initializes the YAML textarea using data from the backend.
-  var data = explorationData.getStateData($scope.stateId);
-  $scope.processStateData(data);
-  $scope.yaml = data.yaml;
+  explorationData.getData().then(function(data) {
+    var stateData = explorationData.getStateData($scope.stateId);
+    $scope.yaml = stateData.yaml;
+  });
 
   // Switch to the stateEditor tab when this controller is activated.
   $('#editorViewTab a[href="#stateEditor"]').tab('show');

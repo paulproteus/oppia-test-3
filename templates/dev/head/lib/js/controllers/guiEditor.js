@@ -18,7 +18,15 @@
  * @author sll@google.com (Sean Lip)
  */
 
-function GuiEditor($scope, $http, $routeParams, explorationData, warningsData, activeInputData) {
+function GuiEditor($scope, $routeParams, explorationData, warningsData, activeInputData) {
+  explorationData.getData().then(function(data) {
+    var promise = explorationData.getStateData($scope.$parent.stateId);
+    promise.then(function(data) {
+      $scope.init(data);
+      $scope.updateMath();
+    });
+  });
+
   $scope.$parent.stateId = $routeParams.stateId;
 
   $scope.init = function(data) {
@@ -52,33 +60,6 @@ function GuiEditor($scope, $http, $routeParams, explorationData, warningsData, a
     // Switch to the stateEditor tab when this controller is activated.
     $scope.$apply($('#editorViewTab a[href="#stateEditor"]').tab('show'));
   };
-
-  // Initializes the GuiEditor.
-  if ($scope.$parent.stateId) {
-    var dataOrPromise = explorationData.getStateData($scope.$parent.stateId);
-    console.log(dataOrPromise);
-    if (dataOrPromise) {
-      if ('then' in dataOrPromise) {
-        console.log('Initializing GUI editor after delay');
-        dataOrPromise.then($scope.init);
-      } else {
-        console.log('Initializing GUI editor');
-        $scope.init(dataOrPromise);
-      }
-    } else {
-      console.log('No state data exists for state ' + $scope.$parent.stateId);
-    }
-  }
-
-  $scope.$on('explorationData', function() {
-    // TODO(sll): Does this actually receive anything?
-    console.log('Init content');
-    var dataOrPromise = explorationData.getStateData($scope.$parent.stateId);
-    if (dataOrPromise) {
-      $scope.init(explorationData.getStateData($scope.$parent.stateId));
-      $scope.updateMath();
-    }
-  });
 
   var editors = {};
 
@@ -447,5 +428,5 @@ function GuiEditor($scope, $http, $routeParams, explorationData, warningsData, a
   };
 }
 
-GuiEditor.$inject = ['$scope', '$http', '$routeParams', 'explorationData',
+GuiEditor.$inject = ['$scope', '$routeParams', 'explorationData',
     'warningsData', 'activeInputData'];

@@ -20,158 +20,21 @@
 
 var END_DEST = 'END';
 var QN_DEST_PREFIX = 'q-';
-// TODO(sll): Internationalize these.
 var GUI_EDITOR_URL = '/gui';
 var YAML_EDITOR_URL = '/text';
 
-// TODO(sll): Move all strings to the top of the file, particularly
-// warning messages and activeInputData.name.
-// TODO(sll): console.log is not supported in IE. Fix before launch.
+// TODO(sll): Move all strings to the top of the file and internationalize them.
+// TODO(sll): console.log is not supported in IE.
 
 oppia.config(['$routeProvider', function($routeProvider) {
   $routeProvider.
       when(YAML_EDITOR_URL + '/:stateId',
-           {templateUrl: '/templates/yaml', controller: YamlEditor}).
+           {templateUrl: '/editor_views/yaml_editor', controller: YamlEditor}).
       when(GUI_EDITOR_URL + '/:stateId',
-           {templateUrl: '/templates/gui', controller: GuiEditor}).
-      when('/', {templateUrl: '/templates/gui', controller: ExplorationTab}).
+           {templateUrl: '/editor_views/gui_editor', controller: GuiEditor}).
+      when('/', {templateUrl: '/editor_views/gui_editor', controller: ExplorationTab}).
       otherwise({redirectTo: '/'});
 }]);
-
-oppia.factory('explorationData', function($rootScope, $http, $resource, warningsData) {
-  // Put exploration variables here.
-  var explorationData = {};
-
-  // Valid state properties
-  var validStateProperties = [
-    'content',
-    'interactive_widget',
-    'interactive_params',
-    'interactive_rulesets',
-    'sticky_interactive_widget',
-    'param_changes',
-    'state_name',
-    'unresolved_answers',
-    'yaml_file'
-  ];
-
-  // The pathname should be: .../create/{exploration_id}[/{state_id}]
-  var explorationUrl = '/create/' + pathnameArray[2];
-
-  // There should be one GET request made for an exploration when the editor page
-  // is initially loaded. This results in a broadcast that will initialize the
-  // relevant frontend controllers.
-  // Any further GET requests will be state-specific and will be obtained by
-  // calling getStateData(stateId).
-  // Thereafter, any updates to the model would be PUT by calling
-  // saveStateData(). This would send a PUT request to the backend to update the
-  // backend model. On success, it will update the model stored here, too.
-
-  // TODO(sll): Find a fix for multiple users editing the same exploration
-  // concurrently.
-  explorationData.get = function() {
-    return $http.get(explorationUrl + '/data');
-  };
-
-  explorationData.getData = function() {
-    // Retrieve data from the server.
-    console.log('Retrieving exploration data from the server');
-
-    $http.get(explorationUrl + '/data').success(
-      function(data) {
-        explorationData.data = data;
-        explorationData.broadcastExploration();
-      }).error(function(errorResponse) {
-        warningsData.addWarning('Server error: ' + errorResponse.error);
-      });
-  };
-
-  explorationData.broadcastExploration = function() {
-    console.log(explorationData);
-    $rootScope.$broadcast('explorationData');
-  };
-
-  explorationData.broadcastState = function(stateId) {
-    if (!stateId) {
-      return;
-    }
-    explorationData.stateId = stateId;
-    console.log('Broadcasting data for state ' + explorationData.stateId);
-    $rootScope.$broadcast('explorationData');
-  };
-
-  explorationData.getStateData = function(stateId) {
-    // Returns the data for the given state, or a promise that supplies it.
-    if (!stateId) {
-      return;
-    }
-    console.log('Getting state data for state ' + stateId);
-    explorationData.stateId = stateId;
-    console.log(explorationData.data);
-
-    if (explorationData.data && 'states' in explorationData.data &&
-        stateId in explorationData.data.states) {
-      return explorationData.data.states[stateId];
-    } else {
-      console.log('Retrieving data from server.');
-      return explorationData.get().then(function(response) {
-        console.log('Received data from server.');
-        console.log(response.data);
-        explorationData.data = response.data;
-        return explorationData.data.states[stateId];
-      });
-    }
-  };
-
-  explorationData.getStateProperty = function(stateId, property) {
-    if (!stateId) {
-      return;
-    }
-    // NB: This does not broadcast an event.
-    console.log(
-        'Getting state property ' + property + ' for state ' + stateId);
-    var stateData = explorationData.getStateData(stateId);
-    if (!stateData) {
-      warningsData.addWarning('Cannot get data for state ' + stateId);
-      return;
-    }
-    if (!stateData.hasOwnProperty(property)) {
-      warningsData.addWarning('Invalid property name: ' + property);
-      return;
-    }
-    return stateData[property];
-  };
-
-  // Saves data for a given state to the backend, and, on a success callback,
-  // updates the data for that state in the frontend and broadcasts an
-  // 'state updated' event.
-  explorationData.saveStateData = function(stateId, propertyValueMap) {
-    for (var property in propertyValueMap) {
-      if (validStateProperties.indexOf(property) < 0) {
-        warningsData.addWarning('Invalid property name: ' + property);
-        return;
-      }
-    }
-
-    console.log(propertyValueMap);
-    console.log(JSON.stringify(propertyValueMap));
-
-    $http.put(
-        explorationUrl + '/' + stateId + '/data',
-        $.param({payload: JSON.stringify(propertyValueMap)}, true),
-        {headers: {'Content-Type': 'application/x-www-form-urlencoded'}}
-    ).success(function(data) {
-      warningsData.clear();
-      console.log('Changes to this state were saved successfully.');
-      explorationData.data['states'][stateId] = data;
-      explorationData.broadcastState(stateId);
-    }).error(function(data) {
-      warningsData.addWarning(data.error || 'Error communicating with server.');
-    });
-  };
-
-  return explorationData;
-});
 
 // Receive events from the iframed widget repository.
 oppia.run(function($rootScope) {
@@ -242,10 +105,13 @@ function EditorExploration($scope, $http, $location, $route, $routeParams,
     if (e.target.hash == '#stateEditor') {
       explorationData.getStateData(explorationData.stateId);
       $scope.changeMode($scope.getMode());
-    } else {
+    } else if (e.target.hash == '#explorationMap') {
       $location.path('');
       explorationData.stateId = '';
-      explorationData.getData();
+      $scope.stateId = '';
+      // TODO(sll): If $apply() is not called, the $scope.stateId change does
+      // not propagate and the 'State Details' tab is still shown. Why?
+      $scope.$apply();
     }
   });
 
@@ -261,10 +127,7 @@ function EditorExploration($scope, $http, $location, $route, $routeParams,
   $scope.explorationDataUrl = '/create/' + $scope.explorationId + '/data';
 
   // Initializes the exploration page using data from the backend.
-  explorationData.getData();
-
-  $scope.$on('explorationData', function() {
-    var data = explorationData.data;
+  explorationData.getData().then(function(data) {
     $scope.stateId = explorationData.stateId;
     $scope.states = data.states;
     $scope.explorationImageId = data.image_id;
@@ -289,18 +152,24 @@ function EditorExploration($scope, $http, $location, $route, $routeParams,
     explorationFullyLoaded = true;
 
     if ($scope.stateId) {
-      $scope.processStateData(explorationData.getStateData($scope.stateId));
+      $scope.stateName = data.name;
     }
   });
 
   $scope.$watch('explorationCategory', function(newValue, oldValue) {
-    $scope.saveExplorationProperty(
-        'explorationCategory', 'category', newValue, oldValue);
+    // Do not save on the initial data load.
+    if (oldValue !== undefined) {
+      $scope.saveExplorationProperty(
+          'explorationCategory', 'category', newValue, oldValue);
+    }
   });
 
   $scope.$watch('explorationTitle', function(newValue, oldValue) {
-    $scope.saveExplorationProperty(
-        'explorationTitle', 'title', newValue, oldValue);
+    // Do not save on the initial data load.
+    if (oldValue !== undefined) {
+      $scope.saveExplorationProperty(
+          'explorationTitle', 'title', newValue, oldValue);
+    }
   });
 
   //TODO: also add values list 
@@ -456,35 +325,15 @@ function EditorExploration($scope, $http, $location, $route, $routeParams,
         {headers: {'Content-Type': 'application/x-www-form-urlencoded'}}).
             success(function(data) {
               $scope.newStateDesc = '';
-              explorationData.getData();
-              if (successCallback) {
-                successCallback(data);
-              }
+              window.location = $scope.explorationUrl;
             }).error(function(data) {
               warningsData.addWarning(
                   'Server error when adding state: ' + data.error);
             });
   };
 
-  $scope.$on('stateData', function() {
-    $scope.stateId = explorationData.stateId;
-    $scope.processStateData(explorationData.getStateData($scope.stateId));
-  });
-
-  /**
-   * Sets up the state editor, given its data from the backend.
-   * @param {Object} data Data received from the backend about the state.
-   */
-  $scope.processStateData = function(data) {
-    $scope.stateId = explorationData.stateId;
-    $scope.stateName = data.name;
-  };
-
   $scope.getStateName = function(stateId) {
-    if (!stateId) {
-      return '[none]';
-    }
-    return explorationData.getStateProperty(stateId, 'name');
+    return stateId ? explorationData.data.states[stateId].name : '[none]';
   };
 
   $scope.openDeleteStateModal = function(stateId) {
@@ -507,7 +356,6 @@ function EditorExploration($scope, $http, $location, $route, $routeParams,
 
     $http['delete']($scope.explorationUrl + '/' + stateId + '/data')
     .success(function(data) {
-      // TODO(sll): Try and handle this without reloading the page.
       window.location = $scope.explorationUrl;
     }).error(function(data) {
       warningsData.addWarning(data.error || 'Error communicating with server.');
