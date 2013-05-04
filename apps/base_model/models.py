@@ -49,6 +49,9 @@ class BaseModel(models.Model):
 
         raise Exception('New id generator is producing too many collisions.')
 
+    class Meta:
+        abstract = True
+
 
 class Converter():
     """A class containing different encoder/decoder functions."""
