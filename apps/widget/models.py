@@ -37,12 +37,17 @@ class AnswerHandler(models.Model):
     """An answer event stream (submit, click, drag, etc.)."""
     name = models.CharField(max_length=30, default='submit')
     # TODO(sll): Store a reference instead?
-    classifier_ids = Classifier.get_classifier_ids()
     classifier = models.CharField(
         max_length=200,
-        choices=zip(classifier_ids, classifier_ids),
         blank=True
     )
+
+    def validate_classifier(self):
+        classifier_ids = Classifier.get_classifier_ids()
+        if self.classifier and self.classifier not in classifier_ids:
+            raise ValidationError(
+                'Not a valid classifier id: %s'
+                % id)
 
     @property
     def rules(self):
@@ -52,6 +57,7 @@ class AnswerHandler(models.Model):
 
     def put(self):
         self.full_clean()
+        self.validate_classifier()
         self.save()
 
 
@@ -84,7 +90,16 @@ class Widget(models.Model):
             for val in value:
                 assert isinstance(val, Parameter)
             self.__dict__['_params'] = Converter.encode(value)
-        elif item in django_internal_attrs or item in ['name', 'category', 'description', 'template', '_params', '_json_field_cache', '_widget_ptr_cache', 'widget_ptr_id']:
+        elif item in django_internal_attrs or item in [
+            'name',
+            'category',
+            'description',
+            'template',
+            '_params',
+            '_json_field_cache',
+            '_widget_ptr_cache',
+            'widget_ptr_id'
+        ]:
             self.__dict__[item] = value
         else:
             raise AttributeError(item)
@@ -117,7 +132,12 @@ class Widget(models.Model):
 
     @classmethod
     def get_raw_code(cls, widget_id, params=None):
-        """Gets the raw code for a parameterized widget."""
+        """Gets the raw code for a parameterized widget.
+
+        This method should be called on a subclass of Widget.
+        """
+        if cls.__name__ == 'Widget':
+            raise NotImplementedError
         if params is None:
             params = {}
 
@@ -154,20 +174,17 @@ class Widget(models.Model):
 
     def to_dict(self):
         output = {}
-        for key in ['name', 'category', 'description', 'template']:
+        for key in ['id', 'name', 'category', 'description', 'template']:
             output[key] = getattr(self, key)
 
-        output['params'] = getattr(self, '_params')
-        output['handlers'] = getattr(self, '_handlers')
+        output['params'] = self.params
+        output['handlers'] = self._handlers
 
         return output
 
-    @classmethod
-    def delete_all_widgets(cls):
-        """Deletes all widgets."""
-        widget_list = Widget.objects.all()
-        for widget in widget_list:
-            widget.delete()
+    # Make Widget an abstract class to avoid multi-table inheritance
+    class Meta:
+        abstract = True
 
 
 class NonInteractiveWidget(Widget):
@@ -204,15 +221,15 @@ class InteractiveWidget(Widget):
 
     @property
     def handlers(self):
-        """Return a list of AnswerHandler objects from JSON object stored in _handlers"""
+        """A list of AnswerHandler objects from JSON object stored in _handlers"""
         handlers = []
         for handler in self._handlers:
-            anshandler = AnswerHandler(
+            ans_handler = AnswerHandler(
                 name=handler['__AnswerHandler__'].get('name'),
             )
-            anshandler.classifier_ids = handler['__AnswerHandler__'].get('classifier_ids', [])
-            anshandler.classifier = handler['__AnswerHandler__'].get('classifier', '')
-            handlers.append(anshandler)
+            ans_handler.classifier = handler['__AnswerHandler__'].get(
+                'classifier', '')
+            handlers.append(ans_handler)
         return handlers
 
     def _pre_put_hook(self):
@@ -225,8 +242,13 @@ class InteractiveWidget(Widget):
         names = [handler.name for handler in self.handlers]
         if len(set(names)) != len(names):
             raise ValidationError(
-                'There are duplicate names in the handler for widget %s'
+                'There are duplicate names in the handlers for widget %s'
                 % self.id)
+
+        # Checks that classifier attr for each AnswerHandler in handlers
+        # is a valid classifier id
+        for handler in self.handlers:
+            handler.validate_classifier()
 
     def _get_handler(self, handler_name):
         """Get the handler object corresponding to a given handler name."""

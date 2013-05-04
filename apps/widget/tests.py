@@ -63,15 +63,16 @@ class WidgetUnitTests(unittest.TestCase):
 
     def test_loading_and_deletion_of_widgets(self):
         """Test loading and deletion of the default widgets."""
-        self.assertEqual(Widget.objects.count(), 0)
+        self.assertEqual(InteractiveWidget.objects.count(), 0)
+        self.assertEqual(NonInteractiveWidget.objects.count(), 0)
 
         InteractiveWidget.load_default_widgets()
-        self.assertEqual(Widget.objects.count(), 7)
         self.assertEqual(InteractiveWidget.objects.count(), 7)
         self.assertEqual(NonInteractiveWidget.objects.count(), 0)
 
-        Widget.delete_all_widgets()
-        self.assertEqual(Widget.objects.count(), 0)
+        InteractiveWidget.delete_all_widgets()
+        self.assertEqual(InteractiveWidget.objects.count(), 0)
+        self.assertEqual(NonInteractiveWidget.objects.count(), 0)
 
     def test_put_method(self):
         """Test that put() only works when called on a Widget subclass."""
@@ -128,7 +129,7 @@ class WidgetUnitTests(unittest.TestCase):
 
     def test_parameterized_widget(self):
         """Test that parameterized widgets are correctly handled."""
-        self.assertEqual(Widget.objects.count(), 0)
+        self.assertEqual(InteractiveWidget.objects.count(), 0)
 
         Classifier.load_default_classifiers()
         InteractiveWidget.load_default_widgets()
@@ -137,10 +138,10 @@ class WidgetUnitTests(unittest.TestCase):
         self.assertEqual(widget.id, 'MusicStaff')
         self.assertEqual(widget.name, 'Music staff')
 
-        code = Widget.get_raw_code('MusicStaff')
+        code = InteractiveWidget.get_raw_code('MusicStaff')
         self.assertIn('GLOBALS.noteToGuess = JSON.parse(\'\\"', code)
 
-        code = Widget.get_raw_code('MusicStaff', {'noteToGuess': 'abc'})
+        code = InteractiveWidget.get_raw_code('MusicStaff', {'noteToGuess': 'abc'})
         self.assertIn('GLOBALS.noteToGuess = JSON.parse(\'abc\');', code)
 
         # The get_with_params() method cannot be called directly on Widget.
