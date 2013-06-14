@@ -44,7 +44,9 @@ def parse_content_into_html(content_array, block_number, params=None):
                 - 'text'; then the value is a text string
                 - 'image'; then the value is an image ID
                 - 'video'; then the value is a video ID
-                - 'widget'; then the value is a widget ID
+                - 'widget'; then the value is a JSON-encoded dict with keys
+                    'id' and 'params', from which the raw widget HTML can be
+                    constructed
         block_number: the number of content blocks preceding this one.
         params: any parameters used for templatizing text strings.
 
@@ -62,31 +64,35 @@ def parse_content_into_html(content_array, block_number, params=None):
     widget_array = []
     widget_counter = 0
     for content in content_array:
-        if content.type == 'widget':
-            try:
-                widget = NonInteractiveWidget.get_with_params(
-                    content.value, params)
-                widget_counter += 1
-                html += feconf.JINJA_ENV.get_template(
-                    'generic/content.html').render({
-                        'type': content.type, 'blockIndex': block_number,
-                        'index': widget_counter})
-                widget_array.append({
-                    'blockIndex': block_number,
-                    'index': widget_counter,
-                    'code': widget.raw})
-            except utils.EntityIdNotFoundError:
-                # Ignore empty widget content.
-                pass
-        elif (content.type in ['text', 'image', 'video']):
+        if content.type in ['text', 'image', 'video']:
             if content.type == 'text':
                 value = utils.parse_with_jinja(content.value, params)
             else:
                 value = content.value
 
             html += feconf.JINJA_ENV.get_template(
-                'generic/content.html').render({
+                'reader/content.html').render({
                     'type': content.type, 'value': value})
+        elif content.type == 'widget':
+            # Ignore empty widget specifications.
+            if not content.value:
+                continue
+
+            widget_dict = json.loads(content.value)
+            widget = NonInteractiveWidget.get_with_params(
+                widget_dict['id'], widget_dict['params'])
+            html += feconf.JINJA_ENV.get_template(
+                'reader/content.html').render({
+                    'blockIndex': block_number,
+                    'index': widget_counter,
+                    'type': content.type,
+                })
+            widget_array.append({
+                'blockIndex': block_number,
+                'index': widget_counter,
+                'raw': widget['raw'],
+            })
+            widget_counter += 1
         else:
             raise utils.InvalidInputException(
                 'Invalid content type %s', content.type)
@@ -99,7 +105,6 @@ class ExplorationPage(BaseHandler):
     def get(self, exploration_id):
         """Handles GET requests."""
         self.values.update({
-            'js': utils.get_js_controllers(['readerExploration']),
             'nav_mode': READER_MODE,
         })
 
@@ -144,10 +149,9 @@ class ExplorationHandler(BaseHandler):
         feedback_bits = [cgi.escape(bit) for bit in feedback.split('\n')]
         action_html, action_widgets = parse_content_into_html(
             [Content(type='text', value='<br>'.join(feedback_bits))],
-            block_number,
-            params)
+            block_number, params)
         html_output += action_html
-        widget_output.append(action_widgets)
+        widget_output += action_widgets
         return html_output, widget_output
 
     def get(self, exploration_id):
@@ -196,7 +200,7 @@ class ExplorationHandler(BaseHandler):
         payload = json.loads(self.request.get('payload'))
 
         # The 0-based index of the last content block already on the page.
-        block_number = payload.get('block_number')
+        block_number = payload.get('block_number') + 1
         # The reader's answer.
         answer = payload.get('answer')
         # The answer handler (submit, click, etc.)
@@ -209,7 +213,7 @@ class ExplorationHandler(BaseHandler):
         dest_id, feedback, rule, recorded_answer = state.transition(
             answer, params, handler)
 
-        if recorded_answer:
+        if recorded_answer is not None:
             recorded_answer = json.dumps(recorded_answer)
             EventHandler.record_rule_hit(
                 exploration_id, state_id, rule, recorded_answer)
@@ -226,12 +230,12 @@ class ExplorationHandler(BaseHandler):
         # TODO(sll): The following is a special-case for multiple choice input,
         # in which the choice text must be displayed instead of the choice
         # number. We might need to find a way to do this more generically.
-        if state.widget.widget_id == 'MultipleChoiceInput':
+        if state.widget.widget_id == 'interactive-MultipleChoiceInput':
             answer = state.widget.params['choices'][int(answer)]
 
         # Append reader's answer.
         values['reader_html'] = feconf.JINJA_ENV.get_template(
-            'generic/reader_response.html').render({'response': answer})
+            'reader/reader_response.html').render({'response': answer})
 
         if dest_id == feconf.END_DEST:
             # This leads to a FINISHED state.
@@ -241,7 +245,7 @@ class ExplorationHandler(BaseHandler):
             EventHandler.record_exploration_completed(exploration_id)
         else:
             state = State.get(dest_id, exploration)
-            EventHandler.record_state_hit(exploration_id, state_id)
+            EventHandler.record_state_hit(exploration_id, dest_id)
 
             if feedback:
                 html_output, widget_output = self.append_feedback(
@@ -259,14 +263,14 @@ class ExplorationHandler(BaseHandler):
                 if state_html and feedback:
                     html_output += '<br>'
                 html_output += state_html
-                widget_output.append(state_widgets)
+                widget_output += state_widgets
 
         if state.widget.widget_id in DEFAULT_ANSWERS:
             values['default_answer'] = DEFAULT_ANSWERS[state.widget.widget_id]
         values.update({
             'exploration_id': exploration.id, 'state_id': state.id,
             'oppia_html': html_output, 'widgets': widget_output,
-            'block_number': block_number + 1, 'params': params,
+            'block_number': block_number, 'params': params,
             'finished': (dest_id == feconf.END_DEST),
         })
 

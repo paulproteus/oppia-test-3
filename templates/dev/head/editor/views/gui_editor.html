@@ -1,5 +1,48 @@
 <div class="container-fluid">
   <div class="row-fluid">
+    <div class="span5">
+      <form ng-submit="saveStateName()">
+        <h3>
+          <span class="oppia-editable-name"
+                ng-hide="activeInputData.name == 'stateName'"
+                ng-click="initializeNewActiveInput('stateName')">
+            <[stateName]>
+          </span>
+          <span ng-show="activeInputData.name == 'stateName'">
+            <input type="text" ng-model="stateName">
+            <input type="submit" value="Save">
+          </span>
+        </h3>
+      </form>
+    </div>
+
+    {% if allow_yaml_file_upload %}  
+      <div class="span5">
+        <div class="pull-right">
+          <span ng-show="getMode() == 'gui'">
+            Graphical Editor | 
+          </span>
+          <span ng-hide="getMode() == 'gui'">
+            <a ng-click="changeMode('gui')">Graphical Editor</a> |
+          </span>
+
+          <span ng-show="getMode() == 'text'">
+            Plaintext Editor
+            <img class="oppia-help" src="/images/help.png"
+                 ui-jq="tooltip"
+                 title="This is an alternative representation of the state in plaintext (YAML) format. If you are not familiar with this representation, please use the Graphical Editor to edit the state instead.">
+          </span>
+          <span ng-hide="getMode() == 'text'">
+            <a ng-click="changeMode('text')">Plaintext Editor</a>
+          </span>
+        </div>
+      </div>
+    {% endif %}                    
+  </div>
+</div>
+
+<div class="container-fluid">
+  <div class="row-fluid">
     <div class="span10">
       <div id="editorWindow" ng-show="stateId">
 
@@ -10,7 +53,7 @@
                title="This allows you to change any parameters associated with a reader who enters this state. A parameter can be accessed by typing {{'{{parameter_name}}'}} in the widget customization, rule definition or feedback fields.">
         </h4>
 
-        {% include 'generic/parameter_change.html' %}
+        {% include 'editor/parameter_change.html' %}
 
         <br>
 
@@ -42,8 +85,15 @@
               <ng-switch on="item.type">
 
                 <div ng-switch-when="text">
-                  <!-- The display of this element is controlled manually, outside Angular JS. -->
-                  <div id="yuiEditor<[$index]>" class="yuiEditor"></div>
+                  <div ng-show="activeInputData.name == 'content.' + $index">
+                    <!-- The display of this element is controlled manually, outside Angular JS. -->
+                    <div class="yui-skin-sam">
+                      <textarea name="yuiEditor<[$index]>" id="yuiEditor<[$index]>" cols="50" rows="10">
+                        <[content[$index]]>
+                      </textarea>
+                    </div>
+                    <button ng-click="saveContent($index)">Save</button>
+                  </div>
 
                   <div ng-hide="activeInputData.name == 'content.' + $index">
                     <span ng-show="item.value == ''" class="oppia-placeholder">
@@ -52,6 +102,7 @@
                     <span ng-bind-html="item.value"></span>
                   </div>
                 </div>
+
                 <div ng-switch-when="image">
                   <ng-switch on="item.value == ''">
                     <div ng-switch-when="true" class="oppia-placeholder">
@@ -68,6 +119,7 @@
                     </div>
                   </ng-switch>
                 </div>
+
                 <div ng-switch-when="video">
                   <ng-switch on="item.value == ''">
                     <div ng-switch-when="true" class="oppia-placeholder">
@@ -84,35 +136,23 @@
                     </div>
                   </ng-switch>
                 </div>
-                <!--
-                TODO(sll): Reinstate this when it works better.
 
                 <div ng-switch-when="widget">
-                  <ng-switch on="item.value == ''">
+                  <div ng-show="item.value == ''">
+                    <iframe ng-src="/widgetrepository?iframed=true&interactive=false&parent_index=<[$index]>" width="100%" height="400px" frameborder="0"></iframe>
+                  </div>
 
-                    <div ng-switch-when="true">
-                      <iframe src="/widgetrepository?iframed=true" width="100%" height="400px" frameborder="0"></iframe>
-                    </div>
-
-                    <div ng-switch-default>
-                      <ul class="nav nav-tabs" id="widgetTabs<[$index]>">
-                        <li class="active"><a data-toggle="tab" href="#preview">Preview</a></li>
-                        <li><a data-toggle="tab" href="#code">Code</a></li>
-                      </ul>
-                      <div class="tab-content">
-                        <div class="tab-pane active" id="preview">
-                          <iframe id="widgetPreview<[$index]>" width="100%" frameborder="0"></iframe>
-                        </div>
-                        <div class="tab-pane" id="code">
-                          <textarea class="oppia-code" ng-model="widgetCode" rows="10" readonly>
-                          </textarea>
-                        </div>
-                      </div>
-                    </div>
-
-                  </ng-switch>
+                  <div ng-hide="item.value == ''">
+                    <button type="button" ng-click="deleteWidget($index)">Change widget</button>
+                    <span ng-show="hasCustomizableParams(item.value)">
+                      <a href="#" ng-click="customizeWidget($index)" data-toggle="modal" data-target="#customizeNonInteractiveWidgetModal">
+                        Customize
+                      </a>
+                    </span>
+                    <iframe id="widgetPreview<[$index]>" width="100%" frameborder="0"></iframe>
+                  </div>
                 </div>
-                -->
+
               </ng-switch>
             </li>
           </ul>
@@ -121,10 +161,7 @@
             <button ng-click="addContent('text')">Add rich text</button>
             <button ng-click="addContent('image')">Add image</button>
             <button ng-click="addContent('video')">Add video</button>
-            <!-- TODO(sll): Reinstate this when it works better.
-
-            <button ng-click="addContent('widget')" ng-hide="isWidgetInStateContent()">Add widget</button>
-            -->
+            <button ng-click="addContent('widget')">Add widget</button>
           </center>
 
           <br>
@@ -134,6 +171,28 @@
         <br>
       </div>
       {% include 'editor/views/interactive_widget_preview.html' %}
+    </div>
+  </div>
+
+  <div class="modal hide fade" id="customizeNonInteractiveWidgetModal">
+    <div class="modal-header">
+      <button type="button" class="close" data-dismiss="modal" aria-hidden="true">
+        &times;
+      </button>
+      <h3 id="customizeWidgetModalLabel">Customize This Widget</h3>
+    </div>
+    <div class="modal-body">
+      <div ng-repeat="(key, val) in customizationParams">
+        <span ng-show="isArray(val)">
+          <[key]>: <list items="val"></list>
+        </span>
+        <span ng-hide="isArray(val)">
+          <[key]>: <string item="customizationParams[key]">
+        </span>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn" data-dismiss="modal" ng-click="saveNonInteractiveWidgetParams()">Save</button>
     </div>
   </div>
 

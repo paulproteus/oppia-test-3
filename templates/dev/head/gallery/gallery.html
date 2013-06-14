@@ -10,15 +10,16 @@
     <div class="oppia-content">
       <div class="oppia-gallery-frame">
 
-        {% if user %}
-          <div class="pull-right">
-            <button class="btn" ng-click="toggleExplorationView()">
-              <[getToggleText()]>
-            </button>
-          </div>
-        {% endif %}
-
-        <h3 class="oppia-page-title"><[getHeadingText()]></h3>
+        <h3 class="oppia-page-title">
+          <[getHeadingText()]>
+          {% if user %}
+            <div class="pull-right">
+              <button class="btn" ng-click="toggleExplorationView()">
+                <[getToggleText()]>
+              </button>
+            </div>
+          {% endif %}
+        </h3>
 
         <div class="tabbable tabs-left" ui-if="categories">
           <ul class="nav nav-tabs" id="navTabs">
@@ -34,7 +35,7 @@
                 <div class="row-fluid">
 
                   <div class="oppia-gallery-block">
-                    <div ng-repeat="exploration in explorations | filter: filterExplorations" class="oppia-gallery-box">
+                    <div ng-repeat="exploration in explorations | filter: canViewExploration" class="oppia-gallery-box">
                       <div>
                         <center>
                           <a href="/learn/<[exploration.data.id]>">
@@ -66,7 +67,7 @@
                                 <span class="oppia-small-font">Edit</span>
                               </a> |
                             </span>
-                            <a ng-click="showModal(exploration.data.id)">
+                            <a ng-click="showEmbedModal(exploration.data.id)">
                               <i class="icon-share-alt" title="Embed this exploration"></i>
                               <span class="oppia-small-font">Embed</span>
                             </a>
@@ -185,3 +186,10 @@
 
   </div>
 {% endblock %}
+
+{% block footer_js %}
+  {{ super() }}
+  <script>
+    {{ include_js_file('gallery/Gallery.js') }}
+  </script>
+{% endblock footer_js %}

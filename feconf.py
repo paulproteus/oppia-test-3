@@ -24,6 +24,7 @@ CODE_CONTRIBUTORS = [
     'Jeremy Emerson',
     'Koji Ashida',
     'Manas Tungare',
+    'Reinaldo Aguiar',
     'Sean Lip',
     'Stephanie Federwisch',
     'Wilson Hong',
@@ -34,12 +35,12 @@ CODE_CONTRIBUTORS = [
 IDEA_CONTRIBUTORS = [
     'Alex Kauffmann',
     'Catherine Colman',
+    'John Cox',
     'Neil Fraser',
     'Pavel Simakov',
     'Peter Norvig',
     'Phil Wagner',
     'Philip Guo',
-    'Reinaldo Aguiar',
 ]
 
 # Demo explorations to load on startup. The id assigned to each exploration
@@ -79,7 +80,8 @@ THIRD_PARTY_DIR = 'third_party'
 SAMPLE_CLASSIFIERS_DIR = 'oppia/data/classifiers'
 SAMPLE_EXPLORATIONS_DIR = 'data/explorations'
 SAMPLE_IMAGES_DIR = 'data/images'
-SAMPLE_WIDGETS_DIR = 'oppia/data/widgets'
+INTERACTIVE_WIDGETS_DIR = 'oppia/data/widgets/interactive'
+NONINTERACTIVE_WIDGETS_DIR = 'oppia/data/widgets/noninteractive'
 
 OBJECT_TEMPLATES_DIR = 'data/objects/templates'
 
@@ -94,19 +96,22 @@ OBJECT_JINJA_ENV = jinja2.Environment(
 loader = jinja2.FileSystemLoader(TEMPLATE_DIR)
 JINJA_ENV = jinja2.Environment(autoescape=True, loader=loader)
 
-def include_js_lib_file(name):
-    """Include a raw JS lib file in the template without evaluating it."""
-    assert name.endswith('.js')
-    return jinja2.Markup(loader.get_source(
-        JINJA_ENV, os.path.join('lib/js', name))[0])
 
-JINJA_ENV.globals['include_js_lib_file'] = include_js_lib_file
+def include_js_file(name):
+    """Include a raw JS file in the template without evaluating it."""
+    assert name.endswith('.js')
+    return jinja2.Markup(loader.get_source(JINJA_ENV, name)[0])
+
+JINJA_ENV.globals['include_js_file'] = include_js_file
 JINJA_ENV.filters.update({
     'is_list': lambda x: isinstance(x, list),
     'is_dict': lambda x: isinstance(x, dict),
 })
 
 END_DEST = 'END'
+
+# Default name for a state.
+DEFAULT_STATE_NAME = '[untitled state]'
 
 # Default file name for newly-created files for download.
 DEFAULT_FILE_NAME = 'New file'
@@ -115,3 +120,7 @@ ACCEPTED_IMAGE_FORMATS = [('gif', 'gif'), ('jpeg', 'jpeg'), ('png', 'png')]
 
 # Set this to True to allow file uploads via YAML in the gallery and editor pages.
 ALLOW_YAML_FILE_UPLOAD = False
+
+# Prefixes for widget ids in the datastore.
+INTERACTIVE_PREFIX = 'interactive'
+NONINTERACTIVE_PREFIX = 'noninteractive'

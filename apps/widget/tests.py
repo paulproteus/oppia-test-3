@@ -67,7 +67,8 @@ class WidgetUnitTests(unittest.TestCase):
         self.assertEqual(NonInteractiveWidget.objects.count(), 0)
 
         InteractiveWidget.load_default_widgets()
-        self.assertEqual(InteractiveWidget.objects.count(), 7)
+
+        self.assertEqual(InteractiveWidget.objects.count(), 8)
         self.assertEqual(NonInteractiveWidget.objects.count(), 0)
 
         InteractiveWidget.delete_all_widgets()
@@ -134,31 +135,34 @@ class WidgetUnitTests(unittest.TestCase):
         Classifier.load_default_classifiers()
         InteractiveWidget.load_default_widgets()
 
-        widget = InteractiveWidget.get('MusicStaff')
-        self.assertEqual(widget.id, 'MusicStaff')
+        MUSIC_STAFF_ID = 'interactive-MusicStaff'
+
+        widget = InteractiveWidget.get(MUSIC_STAFF_ID)
+        self.assertEqual(widget.id, MUSIC_STAFF_ID)
         self.assertEqual(widget.name, 'Music staff')
 
-        code = InteractiveWidget.get_raw_code('MusicStaff')
+        code = InteractiveWidget.get_raw_code(MUSIC_STAFF_ID)
         self.assertIn('GLOBALS.noteToGuess = JSON.parse(\'\\"', code)
 
-        code = InteractiveWidget.get_raw_code('MusicStaff', {'noteToGuess': 'abc'})
+        code = InteractiveWidget.get_raw_code(MUSIC_STAFF_ID, {'noteToGuess': 'abc'})
+
         self.assertIn('GLOBALS.noteToGuess = JSON.parse(\'abc\');', code)
 
         # The get_with_params() method cannot be called directly on Widget.
         # It must be called on a subclass.
         with self.assertRaises(AttributeError):
             parameterized_widget_dict = Widget.get_with_params(
-                'MusicStaff', {'noteToGuess': 'abc'})
+                MUSIC_STAFF_ID, {'noteToGuess': 'abc'})
         with self.assertRaises(NotImplementedError):
             parameterized_widget_dict = Widget._get_with_params(
-                'MusicStaff', {'noteToGuess': 'abc'})
+                MUSIC_STAFF_ID, {'noteToGuess': 'abc'})
 
         parameterized_widget_dict = InteractiveWidget.get_with_params(
-            'MusicStaff', {'noteToGuess': 'abc'})
+            MUSIC_STAFF_ID, {'noteToGuess': 'abc'})
         self.assertItemsEqual(parameterized_widget_dict.keys(), [
             'id', 'name', 'category', 'description', 'template', 'params',
             'handlers', 'raw'])
-        self.assertEqual(parameterized_widget_dict['id'], 'MusicStaff')
+        self.assertEqual(parameterized_widget_dict['id'], MUSIC_STAFF_ID)
         self.assertIn('GLOBALS.noteToGuess = JSON.parse(\'abc\');',
                       parameterized_widget_dict['raw'])
         self.assertEqual(parameterized_widget_dict['params'],

@@ -28,6 +28,7 @@ from controllers import editor
 from controllers import feedback
 from controllers import gallery
 from controllers import pages
+from controllers import profile
 from controllers import reader
 from controllers import resources
 from controllers import widgets
@@ -70,6 +71,9 @@ urls = [
     (r'/gallery/?', gallery.GalleryPage),
     (r'/gallery/data/?', gallery.GalleryHandler),
 
+    (r'/profile/?', profile.ProfilePage),
+    (r'/profile/data/?', profile.ProfileHandler),
+
     (r'/learn/(%s)/?' % r, reader.ExplorationPage),
     (r'/learn/(%s)/data/?' % r, reader.ExplorationHandler),
     # TODO(sll): there is a potential collision here if the state_id is 'data'.
@@ -86,6 +90,7 @@ urls = [
 
     (r'/widgetrepository/?', widgets.WidgetRepositoryPage),
     (r'/widgetrepository/data/?', widgets.WidgetRepositoryHandler),
+    (r'/noninteractive_widgets/(%s)/?' % r, widgets.NonInteractiveWidgetHandler),
     (r'/interactive_widgets/(%s)/?' % r, widgets.InteractiveWidgetHandler),
 
     # 404 error handler.

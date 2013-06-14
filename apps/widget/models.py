@@ -64,8 +64,10 @@ class AnswerHandler(models.Model):
 class Widget(models.Model):
     """A superclass for NonInteractiveWidget and InteractiveWidget.
 
-    NB: The ids for this class are strings that are camel-cased versions of the
-    human-readable names.
+    NB: The ids for this class are strings that are the concatenations of:
+      - the widget type (interactive|noninteractive)
+      - a hyphen
+      - the camel-cased version of the human-readable names.
     """
 
     id = models.CharField(max_length=100, primary_key=True)
@@ -121,6 +123,7 @@ class Widget(models.Model):
     @classmethod
     def get(cls, widget_id):
         """Gets a widget by id. If it does not exist, returns None."""
+        # TODO(sll): Modify this to handle non-interactive widgets.
         return cls.objects.get(id=widget_id)
 
     def put(self):
@@ -148,7 +151,7 @@ class Widget(models.Model):
         parameters = dict(
             (param.name, params.get(
                 param.name, utils.convert_to_js_string(param.value))
-            ) for param in widget.params)
+             ) for param in widget.params)
         return utils.parse_with_jinja(widget.template, parameters)
 
     @classmethod
@@ -193,8 +196,30 @@ class NonInteractiveWidget(Widget):
     @classmethod
     def load_default_widgets(cls):
         """Loads the default widgets."""
-        # TODO(sll): Implement this method.
-        pass
+        widget_ids = os.listdir(feconf.NONINTERACTIVE_WIDGETS_DIR)
+
+        for widget_id in widget_ids:
+            widget_dir = os.path.join(
+                feconf.NONINTERACTIVE_WIDGETS_DIR, widget_id)
+            widget_conf_filename = '%s.config.yaml' % widget_id
+            with open(os.path.join(widget_dir, widget_conf_filename)) as f:
+                conf = utils.dict_from_yaml(f.read().decode('utf-8'))
+
+            conf['id'] = '%s-%s' % (feconf.NONINTERACTIVE_PREFIX, widget_id)
+            conf['params'] = [Parameter(**param) for param in conf['params']]
+            # TODO(sll): Should this be a template *location* instead?
+            conf['template'] = utils.get_file_contents(
+                os.path.join(widget_dir, '%s.html' % widget_id))
+
+            widget = cls(**conf)
+            widget.put()
+
+    @classmethod
+    def get_with_params(cls, widget_id, params):
+        """Gets a dict representing a parameterized widget."""
+        result = super(NonInteractiveWidget, cls)._get_with_params(
+            widget_id, params)
+        return result
 
 
 class InteractiveWidget(Widget):
@@ -261,14 +286,15 @@ class InteractiveWidget(Widget):
         Assumes that everything is valid (directories exist, widget config files
         are formatted correctly, etc.).
         """
-        widget_ids = os.listdir(feconf.SAMPLE_WIDGETS_DIR)
+        widget_ids = os.listdir(feconf.INTERACTIVE_WIDGETS_DIR)
 
         for widget_id in widget_ids:
-            widget_dir = os.path.join(feconf.SAMPLE_WIDGETS_DIR, widget_id)
+            widget_dir = os.path.join(feconf.INTERACTIVE_WIDGETS_DIR, widget_id)
             widget_conf_filename = '%s.config.yaml' % widget_id
             with open(os.path.join(widget_dir, widget_conf_filename)) as f:
                 conf = utils.dict_from_yaml(f.read().decode('utf-8'))
 
+            conf['id'] = '%s-%s' % (feconf.INTERACTIVE_PREFIX, widget_id)
             conf['params'] = [Parameter(**param) for param in conf['params']]
             conf['handlers'] = [AnswerHandler(**ah) for ah in conf['handlers']]
             conf['template'] = utils.get_file_contents(
@@ -289,7 +315,8 @@ class InteractiveWidget(Widget):
     @classmethod
     def get_with_params(cls, widget_id, params):
         """Gets a dict representing a parameterized widget."""
-        result = super(InteractiveWidget, cls)._get_with_params(widget_id, params)
+        result = super(InteractiveWidget, cls)._get_with_params(
+            widget_id, params)
 
         widget = cls.get(widget_id)
 

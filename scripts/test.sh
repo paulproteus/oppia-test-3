@@ -36,7 +36,7 @@ echo Deleting old *.pyc files
 find . -iname "*.pyc" -exec rm -f {} \;
 
 RUNTIME_HOME=../oppia_runtime
-GOOGLE_APP_ENGINE_HOME=$RUNTIME_HOME/google_appengine_1.7.4/google_appengine
+GOOGLE_APP_ENGINE_HOME=$RUNTIME_HOME/google_appengine_1.7.7/google_appengine
 # Note that if the following line is changed so that it uses webob_1_1_1, PUT requests from the frontend fail.
 PYTHONPATH=.:$GOOGLE_APP_ENGINE_HOME:$GOOGLE_APP_ENGINE_HOME/lib/webob_0_9:./third_party/webtest-1.4.2:./third_party/mock-1.0.1
 export PYTHONPATH=$PYTHONPATH
@@ -60,6 +60,19 @@ if [ ! -d "third_party/mock-1.0.1" ]; then
   rm mock-1.0.1.zip
 fi
 
+# Some Angular JS lib files are needed for frontend tests.
+echo Checking whether angularjs is installed in third_party
+if [ ! -d "third_party/static/angularjs-1.0.3" ]; then
+  echo Installing AngularJS and angular-sanitize
+  mkdir -p third_party/static/angularjs-1.0.3/
+  wget https://ajax.googleapis.com/ajax/libs/angularjs/1.0.3/angular.min.js -O third_party/static/angularjs-1.0.3/angular.min.js
+  wget https://ajax.googleapis.com/ajax/libs/angularjs/1.0.3/angular-resource.min.js -O third_party/static/angularjs-1.0.3/angular-resource.min.js
+  wget https://ajax.googleapis.com/ajax/libs/angularjs/1.0.3/angular-sanitize.min.js -O third_party/static/angularjs-1.0.3/angular-sanitize.min.js
+
+  # Files for tests.
+  wget http://code.angularjs.org/1.0.3/angular-mocks.js -O third_party/static/angularjs-1.0.3/angular-mocks.js
+  wget http://code.angularjs.org/1.0.3/angular-scenario.js -O third_party/static/angularjs-1.0.3/angular-scenario.js
+fi
 
 # Note: you can safely delete all of the following code (up to the end of the
 # file) if it leads to errors on your system. It runs checks to see how well

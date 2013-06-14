@@ -96,7 +96,7 @@ class Exploration(BaseModel):
 
     @classmethod
     def create(cls, user, title, category, exploration_id=None,
-               init_state_name='Activity 1', image_id=None):
+               init_state_name=feconf.DEFAULT_STATE_NAME, image_id=None):
         """Creates and returns a new exploration."""
         # Generate a new exploration id, if one wasn't passed in.
         exploration_id = exploration_id or cls.get_new_id(title)
@@ -143,6 +143,16 @@ class Exploration(BaseModel):
         return cls.query().filter(
             ndb.OR(cls.is_public == True, cls.editors == user)
         )
+
+    @classmethod
+    def get_explorations_user_can_edit(cls, user):
+        explorations = cls.get_viewable_explorations(user)
+        editable_explorations = []
+        for exploration in explorations:
+            can_edit = user and exploration.is_editable_by(user)
+            if can_edit:
+                editable_explorations += [exploration.id]
+        return editable_explorations
 
     def add_state(self, state_name):
         """Adds a new state, and returns it."""
@@ -289,7 +299,7 @@ class Exploration(BaseModel):
                 if obj_type and param.obj_type != obj_type:
                     raise Exception(
                         'Parameter %s has wrong obj_type: was %s, expected %s'
-                        % (param_name, obj_type, test_pc.obj_type))
+                        % (param_name, obj_type, param.obj_type))
                 return ParamChange(name=param.name, obj_type=param.obj_type)
 
         # The parameter was not found, so add it.

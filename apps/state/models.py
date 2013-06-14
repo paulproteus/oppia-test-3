@@ -20,10 +20,8 @@ __author__ = 'Sean Lip'
 
 import copy
 import importlib
-import logging
 
 from apps.base_model.models import BaseModel
-from apps.parameter.models import ParamChange
 from apps.parameter.models import ParamChangeProperty
 from apps.widget.models import InteractiveWidget
 from apps.widget.models import Widget
@@ -37,6 +35,7 @@ from google.appengine.ext import ndb
 class Content(ndb.Model):
     """Non-interactive content in a state."""
     type = ndb.StringProperty(choices=['text', 'image', 'video', 'widget'])
+    # TODO(sll): Generalize this so that the value can be a dict (for a widget).
     value = ndb.TextProperty(default='')
 
 
@@ -68,7 +67,7 @@ class AnswerHandlerInstance(ndb.Model):
 class WidgetInstance(ndb.Model):
     """An instance of a widget."""
     # The id of the interactive widget class for this state.
-    widget_id = ndb.StringProperty(default='Continue')
+    widget_id = ndb.StringProperty(default='interactive-Continue')
     # Parameters for the interactive widget view, stored as key-value pairs.
     # Each parameter is single-valued. The values may be Jinja templates that
     # refer to state parameters.
@@ -115,7 +114,7 @@ class State(BaseModel):
                     curr_handler.classifier = w_handler.classifier
 
     # Human-readable name for the state.
-    name = ndb.StringProperty(default='Activity 1')
+    name = ndb.StringProperty(default=feconf.DEFAULT_STATE_NAME)
     # The content displayed to the reader in this state.
     content = ndb.StructuredProperty(Content, repeated=True)
     # Parameter changes associated with this state.
@@ -176,6 +175,13 @@ class State(BaseModel):
         return state
 
     @classmethod
+    def _get_id_from_name(cls, name, exploration):
+        """Converts a state name to an id. Handles the END state case."""
+        if name == feconf.END_DEST:
+            return feconf.END_DEST
+        return State.get_by_name(name, exploration).id
+
+    @classmethod
     def modify_using_dict(cls, exploration, state, sdict):
         """Modifies the properties of a state using values from a dict."""
         state.content = [
@@ -192,80 +198,79 @@ class State(BaseModel):
 
         wdict = sdict['widget']
         state.widget = WidgetInstance(
-            widget_id=wdict['widget_id'], sticky=wdict['sticky'])
+            widget_id=wdict['widget_id'], sticky=wdict['sticky'],
+            params=wdict['params'], handlers=[])
 
-        state.widget.params = wdict['params']
+        # Augment the list of parameters in state.widget with the default widget
+        # params.
         for wp in Widget.get(wdict['widget_id']).params:
             if wp.name not in wdict['params']:
                 state.widget.params[wp.name] = wp.value
 
-        state.widget.handlers = []
         for handler in wdict['handlers']:
-            state_handler = AnswerHandlerInstance(name=handler['name'])
+            handler_rules = [Rule(
+                name=rule['name'],
+                inputs=rule['inputs'],
+                dest=State._get_id_from_name(rule['dest'], exploration),
+                feedback=rule['feedback']
+            ) for rule in handler['rules']]
 
-            for rule in handler['rules']:
-                rule_dest = (
-                    feconf.END_DEST if rule['dest'] == feconf.END_DEST
-                    else State.get_by_name(rule['dest'], exploration).id)
-
-                state_handler.rules.append(Rule(
-                    feedback=rule['feedback'], inputs=rule['inputs'],
-                    name=rule['name'], dest=rule_dest
-                ))
-
-            state.widget.handlers.append(state_handler)
+            state.widget.handlers.append(AnswerHandlerInstance(
+                name=handler['name'], rules=handler_rules))
 
         state.put()
         return state
 
-    def transition(self, answer, params, handler):
+    def transition(self, answer, params, handler_name):
         """Handle feedback interactions with readers."""
 
         recorded_answer = answer
+        # TODO(sll): This is a special case for multiple-choice input
+        # which should really be handled generically.
+        if self.widget.widget_id == 'interactive-MultipleChoiceInput':
+            recorded_answer = self.widget.params['choices'][int(answer)]
 
-        answer_handler = None
-        for wi_handler in self.widget.handlers:
-            if wi_handler.name == handler:
-                answer_handler = wi_handler
+        handlers = [h for h in self.widget.handlers if h.name == handler_name]
+        if not handlers:
+            raise Exception('No handlers found for %s' % handler_name)
+        handler = handlers[0]
 
-        if answer_handler.classifier:
+        if handler.classifier is None:
+            selected_rule = handler.rules[0]
+        else:
             # Import the relevant classifier module.
             classifier_module = '.'.join([
                 feconf.SAMPLE_CLASSIFIERS_DIR.replace('/', '.'),
-                answer_handler.classifier, answer_handler.classifier])
+                handler.classifier, handler.classifier])
             Classifier = importlib.import_module(classifier_module)
-            logging.info(Classifier.__name__)
 
             norm_answer = Classifier.DEFAULT_NORMALIZER().normalize(answer)
             if norm_answer is None:
                 raise Exception('Could not normalize %s.' % answer)
 
-        # TODO(sll): This is a special case for multiple-choice input
-        # which should really be handled generically.
-        if self.widget.widget_id == 'MultipleChoiceInput':
-            recorded_answer = self.widget.params['choices'][int(answer)]
+            selected_rule = self.find_first_match(
+                handler, Classifier, norm_answer, params)
 
-        selected_rule = None
+        feedback = (utils.get_random_choice(selected_rule.feedback)
+                    if selected_rule.feedback else '')
+        return selected_rule.dest, feedback, selected_rule, recorded_answer
 
-        for ind, rule in enumerate(answer_handler.rules):
+    def find_first_match(self, handler, Classifier, norm_answer, params):
+        for ind, rule in enumerate(handler.rules):
             if rule.name == 'Default':
-                selected_rule = rule
-                break
+                return rule
 
             func_name, param_list = self.get_classifier_info(
-                self.widget.widget_id, answer_handler.name, rule, params)
+                self.widget.widget_id, handler.name, rule, params)
             param_list = [norm_answer] + param_list
             classifier_output = getattr(Classifier, func_name)(*param_list)
 
             match, _ = utils.normalize_classifier_return(classifier_output)
 
             if match:
-                selected_rule = rule
-                break
+                return rule
 
-        feedback = (utils.get_random_choice(selected_rule.feedback)
-                    if selected_rule.feedback else '')
-        return selected_rule.dest, feedback, rule, recorded_answer
+        raise Exception('No matching rule found for handler %s.' % handler.name)
 
     def get_typed_object(self, mutable_rule, param):
         param_spec = mutable_rule[mutable_rule.find('{{' + param) + 2:]

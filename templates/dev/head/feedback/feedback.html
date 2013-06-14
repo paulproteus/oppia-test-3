@@ -31,7 +31,7 @@
             </p>
 
             <button type="submit" class="btn btn-large">
-              Send Feedback
+              Submit Feedback
             </button>
           </form>
         </div>
@@ -68,3 +68,10 @@
 
   </div>
 {% endblock %}
+
+{% block footer_js %}
+  {{ super() }}
+  <script>
+    {{ include_js_file('feedback/Feedback.js') }}
+  </script>
+{% endblock footer_js %}

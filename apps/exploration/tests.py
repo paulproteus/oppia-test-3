@@ -200,20 +200,20 @@ class ExplorationModelUnitTests(test_utils.AppEngineTestBase):
         self.assertEqual(yaml_file, """parameters: []
 states:
 - content: []
-  name: Activity 1
+  name: '[untitled state]'
   param_changes: []
   widget:
     handlers:
     - name: submit
       rules:
-      - dest: Activity 1
+      - dest: '[untitled state]'
         feedback: []
         inputs: {}
         name: Default
         param_changes: []
     params: {}
     sticky: false
-    widget_id: Continue
+    widget_id: interactive-Continue
 - content: []
   name: New state
   param_changes: []
@@ -228,7 +228,7 @@ states:
         param_changes: []
     params: {}
     sticky: false
-    widget_id: Continue
+    widget_id: interactive-Continue
 """)
 
         exploration2 = Exploration.create_from_yaml(

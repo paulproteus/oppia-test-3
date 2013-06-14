@@ -32,7 +32,7 @@ handlers:
     Cache-Control: 'public, max-age=600'
 - url: /css
   # NB: not minified. TODO(sll): fix.
-  static_dir: templates/dev/head/lib/css
+  static_dir: templates/dev/head/assets/css
   secure: always
 - url: /img
   static_dir: third_party/bootstrap/img
@@ -46,12 +46,18 @@ handlers:
   http_headers:
     Cache-Control: 'public, max-age=2592000'
     Vary: Accept-Encoding
-- url: /data/widgets/(.*)/static/(.*)
-  static_files: data/widgets/\1/static/\2
-  upload: data/widgets/(.*)/static/(.*)
+- url: /lib/static
+  static_dir: lib/static
   secure: always
   http_headers:
-    Cache-Control: 'public, max-age=60'
+    Cache-Control: 'public, max-age=2592000'
+    Vary: Accept-Encoding
+- url: /data/widgets/(.*)/(.*)/static/(.*)
+  static_files: data/widgets/\1/\2/static/\3
+  upload: data/widgets/(.*)/(.*)/static/(.*)
+  secure: always
+  http_headers:
+    Cache-Control: 'no-cache'
 - url: /.*
   script: main.app
   secure: always

@@ -29,7 +29,6 @@ class GalleryPage(BaseHandler):
     def get(self):
         """Handles GET requests."""
         self.values.update({
-            'js': utils.get_js_controllers(['gallery']),
             'nav_mode': 'gallery',
         })
         self.render_template('gallery/gallery.html')
@@ -45,12 +44,13 @@ class GalleryHandler(BaseHandler):
         used_keys = []
 
         categories = {}
+        editable_explorations = Exploration.get_explorations_user_can_edit(user)
         explorations = Exploration.get_viewable_explorations(user)
 
         for exploration in explorations:
             category_name = exploration.category
 
-            can_edit = user and exploration.is_editable_by(user)
+            can_edit = exploration.id in editable_explorations
 
             used_keys.append(exploration.key)
 

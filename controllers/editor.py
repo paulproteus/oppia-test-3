@@ -98,8 +98,9 @@ def get_exploration_stats(exploration):
                 ['', 'This rule', 'Other answers'],
                 ['', rule_count, state_count - rule_count]]
         state_stats[state_id]['no_answer_chartdata'] = [
-                ['', 'No answer', 'Answer given'], 
-                ['',  state_count - all_rule_count, all_rule_count]]
+            ['', 'No answer', 'Answer given'],
+            ['',  state_count - all_rule_count, all_rule_count]]
+
     return {
         'num_visits': num_visits,
         'num_completions': num_completions,
@@ -170,9 +171,6 @@ class ExplorationPage(BaseHandler):
     def get(self, unused_user, unused_exploration):
         """Handles GET requests."""
         self.values.update({
-            'js': utils.get_js_controllers(
-                ['editorExploration', 'editorTree', 'editorGraph',
-                 'guiEditor', 'yamlEditor', 'interactiveWidgetPreview']),
             'nav_mode': EDITOR_MODE,
         })
         self.render_template('editor/editor_exploration.html')
@@ -192,7 +190,7 @@ class ExplorationHandler(BaseHandler):
 
         parameters = []
         for param in exploration.parameters:
-            parameters.append({'name': param.name, 'type': param.obj_type})
+            parameters.append({'name': param.name, 'obj_type': param.obj_type, 'description': param.description, 'values':param.values})
 
         self.values.update({
             'exploration_id': exploration.id,
@@ -211,6 +209,10 @@ class ExplorationHandler(BaseHandler):
             'num_visits': statistics['num_visits'],
             'num_completions': statistics['num_completions'],
             'state_stats': statistics['state_stats'],
+        })
+        improvments = Statistics.get_top_ten_improvable_states([exploration.id])
+        self.values.update({
+            'imp': improvments,
         })
         self.render_json(self.values)
 
@@ -259,7 +261,7 @@ class ExplorationHandler(BaseHandler):
                     'Only the exploration owner can add new collaborators.')
         if parameters:
             exploration.parameters = [
-                Parameter(name=item['name'], obj_type=item['type'])
+                Parameter(name=item['name'], obj_type=item['obj_type'], description=item['description'], values=item['values'])
                 for item in parameters
             ]
 
