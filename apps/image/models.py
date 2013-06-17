@@ -20,7 +20,7 @@ __author__ = 'Sean Lip'
 
 import imghdr
 
-from oppia.apps.base_model.models import BaseModel
+from oppia.apps.base_model.models import IdModel
 from oppia import feconf
 
 from django.db import models
@@ -40,7 +40,7 @@ import caching.base
 #         assert is_valid, error_message
 
 
-class Image(caching.base.CachingMixin, BaseModel):
+class Image(caching.base.CachingMixin, IdModel):
     """An image."""
     # The raw image blob.
     raw = models.ImageField(upload_to='uploads/images')

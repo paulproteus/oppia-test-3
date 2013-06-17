@@ -16,6 +16,7 @@
 
 __author__ = 'Sean Lip'
 
+from oppia.apps.base_model.models import BaseModel
 from oppia.data.objects.models import objects
 
 from django.db import models
@@ -35,7 +36,7 @@ def get_object_class(cls_name):
     return object_class
 
 
-class TypedInstance(models.Model):
+class TypedInstance(BaseModel):
     """Represents an instance of a typed object."""
     def _pre_put_hook(self):
         """Does validation before the model is put into the datastore.

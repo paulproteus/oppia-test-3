@@ -53,11 +53,12 @@
                       <li class="active">
                         <a href="">Learn</a>
                       </li>
-                    {% endif %}
-                    {% if nav_mode == 'editor' %}
-                      <li class="active">
-                        <a href="">Create</a>
-                      </li>
+                    {% else %}
+                      {% if user %}
+                        <li {% if nav_mode == 'profile' or nav_mode == 'editor' %} class="active" {% endif %}>
+                          <a href="/profile">My Explorations</a>
+                        </li>
+                      {% endif %}
                     {% endif %}
                   </ul>
 
@@ -81,9 +82,6 @@
                           <b class="caret"></b>
                         </a>
                         <ul class="dropdown-menu">
-                          <li>
-                            <a href="/profile">My Explorations</a>
-                          </li>
                           <li>
                             <a href="{{logout_url}}">Logout</a>
                           </li>

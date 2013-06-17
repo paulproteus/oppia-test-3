@@ -16,11 +16,10 @@
 
 __author__ = 'sll@google.com (Sean Lip)'
 
-from apps.exploration.models import Exploration
-from controllers.base import BaseHandler
-import utils
+import collections
 
-from google.appengine.api import users
+import apps.exploration.services as exp_services
+from controllers.base import BaseHandler
 
 
 class GalleryPage(BaseHandler):
@@ -39,35 +38,20 @@ class GalleryHandler(BaseHandler):
 
     def get(self):
         """Handles GET requests."""
-        user = users.get_current_user()
+        explorations = exp_services.get_viewable_explorations(self.user)
+        editable_exploration_ids = [
+            e.id for e in exp_services.get_editable_explorations(self.user)]
 
-        used_keys = []
-
-        categories = {}
-        editable_explorations = Exploration.get_explorations_user_can_edit(user)
-        explorations = Exploration.get_viewable_explorations(user)
+        categories = collections.defaultdict(list)
 
         for exploration in explorations:
-            category_name = exploration.category
-
-            can_edit = exploration.id in editable_explorations
-
-            used_keys.append(exploration.key)
-
-            data = exploration.to_dict(
-                exclude=['states', 'init_state'])
-            data.update({'id': exploration.id})
-            data['editors'] = [editor.nickname() for
-                               editor in exploration.editors]
-
-            if not categories.get(category_name):
-                categories[category_name] = []
-            categories[category_name].append({
-                'data': data,
-                'can_edit': can_edit,
-                'can_fork': user and exploration.is_demo_exploration(),
-                'is_owner': (user and exploration.editors and
-                             user == exploration.editors[0]),
+            categories[exploration.category].append({
+                'can_edit': exploration.id in editable_exploration_ids,
+                'can_fork': self.user and exp_services.is_demo(exploration),
+                'id': exploration.id,
+                'image_id': exploration.image_id,
+                'is_owner': exp_services.is_owner(self.user, exploration),
+                'title': exploration.title,
             })
 
         self.values.update({

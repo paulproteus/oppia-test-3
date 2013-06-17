@@ -18,6 +18,7 @@ __author__ = 'Sean Lip'
 
 import re
 
+from apps.base_model.models import BaseModel
 from oppia.apps.types.models import get_object_class
 from oppia.apps.base_model.models import Converter
 from oppia.apps.base_model.models import django_internal_attrs
@@ -27,7 +28,7 @@ from django.db import models
 from json_field import JSONField
 
 
-class Parameter(models.Model):
+class Parameter(BaseModel):
     """Represents a (multi-valued) parameter.
 
     The 'values' property represents the list of possible default values for
@@ -95,7 +96,7 @@ class ParamChange(Parameter):
     description = None
 
 
-class ParamSet(models.Model):
+class ParamSet(BaseModel):
     """A list of parameters."""
     # List of Parameter objects. An ordered list of parameters.
     _params = JSONField()

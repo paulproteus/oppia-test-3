@@ -49,6 +49,15 @@ class BaseModel(models.Model):
 
         raise Exception('New id generator is producing too many collisions.')
 
+    @classmethod
+    def get(cls, entity_id, strict=True, parent=None):
+        """Gets an entity by id. Fails noisily if strict == True."""
+        entity = cls.get_by_id(entity_id, parent=parent)
+        if strict and not entity:
+            raise Exception('Entity for class %s with id %s not found' %
+                            (cls.__name__, entity_id))
+        return entity
+
     class Meta:
         abstract = True
 

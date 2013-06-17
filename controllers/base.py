@@ -33,11 +33,10 @@ def require_user(handler):
     """Decorator that checks if a user is associated to the current session."""
     def test_login(self, **kwargs):
         """Checks if the user for the current session is logged in."""
-        user = users.get_current_user()
-        if not user:
+        if not self.user:
             self.redirect(users.create_login_url(self.request.uri))
             return
-        return handler(self, user, **kwargs)
+        return handler(self, **kwargs)
 
     return test_login
 
@@ -62,22 +61,27 @@ def require_editor(handler):
             self.UnauthorizedUserException: if the user exists but does not have
                 the right credentials.
         """
-        user = users.get_current_user()
-        if not user:
+        if not self.user:
             self.redirect(users.create_login_url(self.request.uri))
             return
 
-        exploration = Exploration.get(exploration_id)
+        try:
+            exploration = Exploration.get(exploration_id)
+        except:
+            raise self.PageNotFoundException
 
-        if not exploration.is_editable_by(user):
+        if not exploration.is_editable_by(self.user):
             raise self.UnauthorizedUserException(
                 '%s does not have the credentials to edit this exploration.',
-                user)
+                self.user)
 
         if not state_id:
-            return handler(self, user, exploration, **kwargs)
-        state = State.get(state_id, exploration)
-        return handler(self, user, exploration, state, **kwargs)
+            return handler(self, exploration, **kwargs)
+        try:
+            state = State.get(state_id, parent=exploration.key)
+        except:
+            raise self.PageNotFoundException
+        return handler(self, exploration, state, **kwargs)
 
     return test_editor
 
@@ -86,14 +90,13 @@ def require_admin(handler):
     """Decorator that checks if the current user is an admin."""
     def test_admin(self, **kwargs):
         """Checks if the user is logged in and is an admin."""
-        user = users.get_current_user()
-        if not user:
+        if not self.user:
             self.redirect(users.create_login_url(self.request.uri))
             return
         if not users.is_current_user_admin():
             raise self.UnauthorizedUserException(
-                '%s is not an admin of this application', user)
-        return handler(self, user, **kwargs)
+                '%s is not an admin of this application', self.user)
+        return handler(self, **kwargs)
 
     return test_admin
 
@@ -115,14 +118,30 @@ class BaseHandler(webapp2.RequestHandler):
             'allow_yaml_file_upload': feconf.ALLOW_YAML_FILE_UPLOAD,
         }
 
-        user = users.get_current_user()
-        if user:
+        self.user = users.get_current_user()
+        if self.user:
             self.values['logout_url'] = (
                 users.create_logout_url(self.request.uri))
-            self.values['user'] = user.nickname()
+            self.values['user'] = self.user.nickname()
             self.values['is_admin'] = users.is_current_user_admin()
         else:
             self.values['login_url'] = users.create_login_url(self.request.uri)
+
+    def get(self, *args):
+        """Base method to handle GET requests."""
+        raise self.PageNotFoundException
+
+    def post(self, *args):
+        """Base method to handle POST requests."""
+        raise self.PageNotFoundException
+
+    def put(self, *args):
+        """Base method to handle PUT requests."""
+        raise self.PageNotFoundException
+
+    def delete(self, *args):
+        """Base method to handle PUT requests."""
+        raise self.PageNotFoundException
 
     def render_json(self, values):
         self.response.content_type = 'application/json'
@@ -156,6 +175,12 @@ class BaseHandler(webapp2.RequestHandler):
         logging.info(''.join(traceback.format_exception(*sys.exc_info())))
         logging.error('Exception raised: %s', exception)
 
+        if isinstance(exception, self.PageNotFoundException):
+            logging.error('Invalid URL requested: %s', self.request.uri)
+            self.error(404)
+            self.redirect('/gallery')
+            return
+
         if isinstance(exception, self.NotLoggedInException):
             self.redirect(users.create_login_url(self.request.uri))
             return
@@ -186,6 +211,9 @@ class BaseHandler(webapp2.RequestHandler):
 
     class InvalidInputException(Exception):
         """Error class for invalid input on the user's side (error code 400)."""
+
+    class PageNotFoundException(Exception):
+        """Error class for a page not found error (error code 404)."""
 
     class InternalErrorException(Exception):
         """Error class for an internal server side error (error code 500)."""

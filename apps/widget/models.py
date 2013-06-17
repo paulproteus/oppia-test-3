@@ -21,6 +21,7 @@ __author__ = 'Sean Lip'
 import copy
 import os
 
+from oppia.apps.base_model.models import BaseModel
 from oppia.apps.base_model.models import Converter
 from oppia.apps.base_model.models import django_internal_attrs
 from oppia.apps.classifier.models import Classifier
@@ -33,7 +34,7 @@ from django.core.exceptions import ValidationError
 from json_field import JSONField
 
 
-class AnswerHandler(models.Model):
+class AnswerHandler(BaseModel):
     """An answer event stream (submit, click, drag, etc.)."""
     name = models.CharField(max_length=30, default='submit')
     # TODO(sll): Store a reference instead?
@@ -164,7 +165,12 @@ class Widget(models.Model):
             raise NotImplementedError
 
         widget = cls.get(widget_id)
-        result = copy.deepcopy(widget.to_dict())
+
+        if widget is None:
+            raise Exception('No widget found with id %s' % widget_id)
+
+        result = copy.deepcopy(widget.to_dict(exclude=['class_']))
+
         result.update({
             'id': widget_id,
             'raw': cls.get_raw_code(widget_id, params),

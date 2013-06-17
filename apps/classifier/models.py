@@ -21,6 +21,7 @@ __author__ = 'Sean Lip'
 import os
 
 from oppia.apps.base_model.models import BaseModel
+from oppia.apps.base_model.models import IdModel
 from oppia.apps.base_model.models import django_internal_attrs
 from oppia.apps.base_model.models import Converter
 from oppia import feconf
@@ -30,7 +31,7 @@ from django.db import models
 from json_field import JSONField
 
 
-class RuleSpec(models.Model):
+class RuleSpec(BaseModel):
     """A rule specification in a classifier."""
     # Python code for the rule, e.g. "equals(x)"
     rule = models.CharField(max_length=50, blank=True)
@@ -56,11 +57,8 @@ class RuleSpec(models.Model):
             raise AttributeError(item)
 
 
-class Classifier(BaseModel):
-    """An Oppia classifier."""
-
-    # The id is the same as the directory name for this classifier.
-    # id is inherited from BaseModel
+class Classifier(IdModel):
+    """An Oppia classifier. Its id is the same as its directory name."""
 
     # Rule specifications for the classifier.
     # A JSON object containing a list of Rule specifications.
@@ -93,6 +91,11 @@ class Classifier(BaseModel):
             )
             rules.append(rulespec)
         return rules
+
+    @classmethod
+    def get_new_id(cls, entity_name):
+        """This method should not be called."""
+        raise NotImplementedError
 
     @classmethod
     def delete_all_classifiers(cls):
