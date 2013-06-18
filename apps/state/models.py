@@ -21,23 +21,34 @@ __author__ = 'Sean Lip'
 import copy
 import importlib
 
-from apps.base_model.models import BaseModel
-from apps.base_model.models import IdModel
-from apps.parameter.models import ParamChangeProperty
-from apps.widget.models import InteractiveWidget
-from apps.widget.models import Widget
-from data.objects.models import objects
-import feconf
-import utils
+from oppia.apps.base_model.models import BaseModel
+from oppia.apps.base_model.models import Converter
+from oppia.apps.base_model.models import django_internal_attrs
+from oppia.apps.exploration.models import Exploration
+from oppia.apps.parameter.models import ParamChange
+from oppia.apps.widget.models import InteractiveWidget
+from oppia.apps.widget.models import Widget
+from oppia.data.objects.models import objects
+from oppia import feconf
+from oppia import utils
 
-from google.appengine.ext import ndb
+from django.db import models
+from json_field import JSONField
 
 
 class Content(BaseModel):
     """Non-interactive content in a state."""
-    type = ndb.StringProperty(choices=['text', 'image', 'video', 'widget'])
-    # TODO(sll): Generalize this so that the value can be a dict (for a widget).
-    value = ndb.TextProperty(default='')
+    type = models.CharField(max_length=100, choices=[
+        ('text', 'text'),
+        ('image', 'image'),
+        ('video', 'video'),
+        ('widget', 'widget')
+    ])
+    value = models.TextField(default='')
+
+    def put(self):
+        self.full_clean()
+        self.save()
 
 
 class Rule(BaseModel):
@@ -45,39 +56,139 @@ class Rule(BaseModel):
     # TODO(sll): Ensure the types for param_changes are consistent.
 
     # The name of the rule.
-    name = ndb.StringProperty(required=True)
+    name = models.CharField(max_length=100)
     # Parameters for the classification rule. TODO(sll): Make these the actual params.
-    inputs = ndb.JsonProperty(default={})
+    inputs = JSONField(default={})
     # The id of the destination state.
-    dest = ndb.StringProperty()
+    dest = models.CharField(max_length=100, blank=True)
     # Feedback to give the reader if this rule is triggered.
-    feedback = ndb.TextProperty(repeated=True)
-    # State-level parameter changes to make if this rule is triggered.
-    param_changes = ParamChangeProperty(repeated=True)
+    feedback = JSONField(default=[])
+
+    _param_changes = JSONField(default=[])
+
+    def __setattr__(self, item, value):
+        """Encode a list of ParamChange objects to JSON object."""
+        if item == 'param_changes':
+            assert isinstance(value, list)
+            for val in value:
+                assert isinstance(val, ParamChange)
+            self.__dict__['_param_changes'] = Converter.encode(value)
+        elif item == 'feedback':
+            assert isinstance(value, list)
+            for val in value:
+                assert isinstance(val, basestring)
+            self.__dict__['feedback'] = value
+        elif item in django_internal_attrs or item in [
+            '_param_changes',
+            'name',
+            'inputs',
+            'dest',
+            'feedback',
+            '_json_field_cache'
+        ]:
+            self.__dict__[item] = value
+        else:
+            raise AttributeError(item)
+
+    @property
+    def param_changes(self):
+        """Return a list of ParamChange objects from JSON object stored in _param_changes"""
+        param_changes = []
+        for pc in self._param_changes:
+            param_change = ParamChange(
+                name=pc['__ParamChange__']['name'],
+                description=pc['__ParamChange__']['description'],
+                obj_type=pc['__ParamChange__']['obj_type'],
+                values=pc['__ParamChange__']['values']
+            )
+            param_changes.append(param_change)
+        return param_changes
 
 
 class AnswerHandlerInstance(BaseModel):
     """An answer event stream (submit, click, drag, etc.)."""
-    name = ndb.StringProperty(default='submit')
-    rules = ndb.LocalStructuredProperty(Rule, repeated=True)
-    # This is a derived property from the corresponding AnswerHandler in
-    # widget.py. It is added automatically on State.put().
-    classifier = ndb.StringProperty()
+    name = models.CharField(max_length=100, default='submit')
+    # A list of Rule objects
+    _rules = JSONField(default=[])
+    classifier = models.CharField(max_length=100)
+
+    def __setattr__(self, item, value):
+        """We encode a list of Rule objects into a JSON object using
+        Converter.encode"""
+        if item == 'rules':
+            assert isinstance(value, list)
+            for val in value:
+                assert isinstance(val, Rule)
+            self.__dict__['_rules'] = Converter.encode(value)
+        elif item in django_internal_attrs or item in [
+            '_rules', 'name', 'classifier', '_json_field_cache'
+        ]:
+            self.__dict__[item] = value
+        else:
+            raise AttributeError(item)
+
+    @property
+    def rules(self):
+        """Return a list of Rule objects from JSON object stored in _rules"""
+        rules = []
+        for rule in self._rules:
+            rule_instance = Rule(
+                name=rule['__Rule__']['name'],
+                inputs=rule['__Rule__']['description'],
+                dest=rule['__Rule__']['obj_type'],
+                feedback=rule['__Rule__']['values'],
+                param_changes=rule['__Rule__']['param_changes']
+            )
+            rules.append(rule_instance)
+        return rules
 
 
 class WidgetInstance(BaseModel):
     """An instance of a widget."""
     # The id of the interactive widget class for this state.
-    widget_id = ndb.StringProperty(default='interactive-Continue')
+    widget_id = models.CharField(max_length=100, default='Continue')
     # Parameters for the interactive widget view, stored as key-value pairs.
     # Each parameter is single-valued. The values may be Jinja templates that
     # refer to state parameters.
-    params = ndb.JsonProperty(default={})
+    params = JSONField(default={})
     # If true, keep the widget instance from the previous state if both are of
     # the same type.
-    sticky = ndb.BooleanProperty(default=False)
+    sticky = models.BooleanField(default=False)
     # Answer handlers and rulesets.
-    handlers = ndb.LocalStructuredProperty(AnswerHandlerInstance, repeated=True)
+    _handlers = JSONField(default=[])
+
+    def __setattr__(self, item, value):
+        """We encode a list of AnswerHandler objects into a JSON object using
+        Converter.encode"""
+        if item == 'handlers':
+            assert isinstance(value, list)
+            for val in value:
+                assert isinstance(val, AnswerHandlerInstance)
+            self.__dict__['_handlers'] = Converter.encode(value)
+        elif item == 'params':
+            assert isinstance(value, dict)
+            for val in value:
+                assert isinstance(val, basestring)
+            self.__dict__['params'] = value
+        elif item in django_internal_attrs or item in [
+            '_handlers', 'widget_id', 'params', 'sticky', '_json_field_cache'
+        ]:
+            self.__dict__[item] = value
+        else:
+            raise AttributeError(item)
+
+    @property
+    def handlers(self):
+        """Returns a list of AnswerHandlerInstance objects"""
+        handlers = []
+        for handler in self._handlers:
+            handler_instance = AnswerHandlerInstance(
+                name=handler['__AnswerHandlerInstance__']['name'],
+                rules=handler['__AnswerHandlerInstance__']['rules'],
+                classifier=handler['__AnswerHandlerInstance__']['classifier']
+            )
+            handlers.append(handler_instance)
+        return handlers
 
 
 class State(IdModel):
@@ -115,37 +226,77 @@ class State(IdModel):
                     curr_handler.classifier = w_handler.classifier
 
     # Human-readable name for the state.
-    name = ndb.StringProperty(default=feconf.DEFAULT_STATE_NAME)
+    name = models.CharField(max_length=100, default=feconf.DEFAULT_STATE_NAME)
     # The content displayed to the reader in this state.
-    content = ndb.StructuredProperty(Content, repeated=True)
+    _content = JSONField(default=[])
     # Parameter changes associated with this state.
-    param_changes = ParamChangeProperty(repeated=True)
+    _param_changes = JSONField(default=[])
     # The interactive widget associated with this state. Set to be the default
     # widget if not explicitly specified by the caller.
-    widget = ndb.StructuredProperty(WidgetInstance, required=True)
+    _widget = JSONField(default=[])
     # A dict whose keys are unresolved answers associated with this state, and
     # whose values are their counts.
-    unresolved_answers = ndb.JsonProperty(default={})
+    unresolved_answers = JSONField(default={})
+    parent = models.ForeignKey(Exploration, related_name='states')
+
+    def __setattr__(self, item, value):
+        if item == 'content':
+            assert isinstance(value, list)
+            for val in value:
+                assert isinstance(val, Content)
+            self.__dict__['_content'] = Converter.encode(value)
+        elif item == 'param_changes':
+            assert isinstance(value, list)
+            for val in value:
+                assert isinstance(val, ParamChange)
+            self.__dict__['_param_changes'] = Converter.encode(value)
+        elif item == 'widget':
+            assert isinstance(value, list)
+            for val in value:
+                assert isinstance(val, WidgetInstance)
+            self.__dict__['_widget'] = Converter.encode(value)
+        elif item == 'unresolved_answers':
+            assert isinstance(value, dict)
+            for key, val in value.iteritems():
+                assert isinstance(key, basestring)
+                assert isinstance(val, int)
+            self.__dict__['unresolved_answers'] = value
+        elif item in django_internal_attrs or item in [
+            'name', '_content', '_param_changes', '_widget', '_json_field_cache'
+        ]:
+            self.__dict__[item] = value
+        else:
+            raise AttributeError(item)
 
     @classmethod
     def create(cls, exploration, name, state_id=None):
         """Creates a new state."""
         state_id = state_id or cls.get_new_id(name)
-        new_state = cls(id=state_id, parent=exploration.key, name=name)
+        new_state = cls(id=state_id, parent=exploration, name=name)
         new_state.put()
         return new_state
 
+    def to_dict(self):
+        output = {}
+        for key in ['id', 'name']:
+            output[key] = getattr(self, key)
+
+        output['param_changes'] = self._param_changes
+        output['content'] = self._content
+        output['widget'] = self._widget
+
+        return output
+
     def as_dict(self):
         """Gets a Python dict representation of the state."""
-        state_dict = self.internals_as_dict()
+        state_dict = copy.deepcopy(self.to_dict())
         state_dict.update({'id': self.id, 'name': self.name,
                            'unresolved_answers': self.unresolved_answers})
         return state_dict
 
     def internals_as_dict(self, human_readable_dests=False):
         """Gets a Python dict of the internals of the state."""
-        state_dict = copy.deepcopy(self.to_dict(
-            exclude=['unresolved_answers']))
+        state_dict = copy.deepcopy(self.to_dict())
         # Remove the computed 'classifier' property.
         for handler in state_dict['widget']['handlers']:
             del handler['classifier']
@@ -155,8 +306,10 @@ class State(IdModel):
             for handler in state_dict['widget']['handlers']:
                 for rule in handler['rules']:
                     if rule['dest'] != feconf.END_DEST:
-                        dest_state = State.get(
-                            rule['dest'], parent=self.key.parent())
+
+                        dest_state = State.objects.get(
+                            id=rule['dest'], parent=self.parent)
+
                         rule['dest'] = dest_state.name
         return state_dict
 
@@ -164,8 +317,7 @@ class State(IdModel):
     def get_by_name(cls, name, exploration, strict=True):
         """Gets a state by name. Fails noisily if strict == True."""
         assert name and exploration
-        state = cls.query(ancestor=exploration.key).filter(
-            cls.name == name).get()
+        state = cls.objects.get(parent=exploration, name=name)
         if strict and not state:
             raise Exception('State %s not found.' % name)
         return state
@@ -199,7 +351,7 @@ class State(IdModel):
 
         # Augment the list of parameters in state.widget with the default widget
         # params.
-        for wp in Widget.get(wdict['widget_id']).params:
+        for wp in Widget.objects.get(id=wdict['widget_id']).params:
             if wp.name not in wdict['params']:
                 state.widget.params[wp.name] = wp.value
 
@@ -277,7 +429,7 @@ class State(IdModel):
     def get_classifier_info(self, widget_id, handler_name, rule, state_params):
         classifier_func = rule.name.replace(' ', '')
         first_bracket = classifier_func.find('(')
-        mutable_rule = InteractiveWidget.get(widget_id).get_readable_name(
+        mutable_rule = InteractiveWidget.objects.get(id=widget_id).get_readable_name(
             handler_name, rule.name)
 
         func_name = classifier_func[: first_bracket]
@@ -295,3 +447,8 @@ class State(IdModel):
             param_list.append(normalized_param)
 
         return func_name, param_list
+
+    def put(self):
+        self._pre_put_hook()
+        self.full_clean()
+        self.save()

@@ -20,16 +20,16 @@ __author__ = 'Sean Lip'
 
 import os
 
-from apps.base_model.models import BaseModel
-from apps.base_model.models import IdModel
-from apps.image.models import Image
-from apps.parameter.models import Parameter
-from apps.parameter.models import ParamChange
-from apps.parameter.models import ParamSet
-from apps.state.models import State
-import feconf
-import logging
-import utils
+from oppia.apps.base_model.models import BaseModel
+from oppia.apps.base_model.models import IdModel
+from oppia.apps.image.models import Image
+from oppia.apps.parameter.models import Parameter
+from oppia.apps.parameter.models import ParamChange
+from oppia.apps.parameter.models import ParamSet
+from oppia.apps.state.models import State
+from oppia import feconf
+from oppia import logging
+from oppia import utils
 
 from google.appengine.api import users
 from google.appengine.ext import ndb

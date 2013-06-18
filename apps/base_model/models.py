@@ -23,8 +23,72 @@ from oppia import utils
 
 from django.db import models
 
+primitive = (int, bool, basestring)
+
 
 class BaseModel(models.Model):
+    """A model class containing all common methods"""
+
+    json_field_schema = {}
+    simple_attrs = []
+
+    def _pre_put_hook(self):
+        pass
+
+    def __setattr__(self, item, value):
+        if item in self.json_field_schema and isinstance(value, (list, dict)):
+            assert type(self.json_field_schema[item]) == type(value)
+            try:
+                if isinstance(value, list):
+                    for val in value:
+                        assert isinstance(val, self.json_field_schema[item][0])
+                    self.__dict__['_%s' % item] = Converter.encode(value)
+                elif isinstance(value, dict):
+                    for key, val in value:
+                        assert key in self.json_field_schema[item].keys()
+                        assert isinstance(val, self.json_field_schema[item][key])
+                    self.__dict__['_%s' % item] = Converter.encode(value)
+            except Exception as e:
+                raise ValueError(e)
+        elif item in all_internal_attrs or item in self.simple_attrs:
+            self.__dict__[item] = value
+        elif item[0] == '_' and item[1:] in self.json_field_schema:
+            self.__dict__[item] = value
+        else:
+            raise AttributeError(item)
+
+    def __getattr__(self, item):
+        schema = self.json_field_schema
+        if item in schema and \
+                isinstance(schema[item], list):
+            if isinstance(schema[item][0], primitive):
+                return self.__dict__['_%s' % item]
+            elif isinstance(schema[item][0], object):
+                object_list = []
+                obj_class = schema[item][0]
+                arg_list = obj_class.json_field_schema.keys() \
+                    + obj_class.simple_attrs
+                for instance in self.__dict__['_%s' % item]:
+                    arg_dict = {}
+                    for arg in arg_list:
+                        arg_dict[arg] = instance['__%s__' % (
+                            obj_class.__name__)].get(arg)
+                    obj = obj_class(**arg_dict)
+                    object_list.append(obj)
+                return object_list
+        else:
+            return self.__getattribute__(item)
+
+    def put(self):
+        self._pre_put_hook()
+        self.full_clean()
+        self.save()
+
+    class Meta:
+        abstract = True
+
+
+class IdModel(BaseModel):
     """A model stub which has an explicit id property."""
     id = models.CharField(max_length=100, primary_key=True)
 
@@ -103,3 +167,6 @@ class DummyModel(models.Model):
 dummymodel = DummyModel()
 
 django_internal_attrs = dir(dummymodel)
+internal_attrs = ['_json_field_cache', ]
+
+all_internal_attrs = django_internal_attrs + internal_attrs

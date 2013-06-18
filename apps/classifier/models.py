@@ -20,10 +20,9 @@ __author__ = 'Sean Lip'
 
 import os
 
-from oppia.apps.base_model.models import BaseModel
 from oppia.apps.base_model.models import IdModel
-from oppia.apps.base_model.models import django_internal_attrs
-from oppia.apps.base_model.models import Converter
+from oppia.apps.base_model.models import BaseModel
+
 from oppia import feconf
 from oppia import utils
 
@@ -42,19 +41,15 @@ class RuleSpec(BaseModel):
     # JSON object containing a list of checks
     checks = JSONField(default=[])
 
-    def __setattr__(self, item, value):
-        if item == 'checks':
-            assert isinstance(value, list)
-            if value:
-                for val in value:
-                    assert isinstance(val, basestring)
-            self.__dict__['checks'] = value
-        elif item in django_internal_attrs or item in [
-            'name', 'rule', '_json_field_cache'
-        ]:
-            self.__dict__[item] = value
-        else:
-            raise AttributeError(item)
+    simple_attrs = ['name', 'rule']
+
+    json_field_schema = {
+        'checks': [basestring]
+    }
+
+    # @property
+    # def checks(self):
+    #     self.__getattr__(self, 'checks')
 
 
 class Classifier(IdModel):
@@ -62,35 +57,16 @@ class Classifier(IdModel):
 
     # Rule specifications for the classifier.
     # A JSON object containing a list of Rule specifications.
-    _rules = JSONField()
+    rules = JSONField(default=[])
 
-    def __setattr__(self, item, value):
-        """We encode a list of RuleSpec objects into a JSON object using
-        RulesEncoder"""
-        if item == 'rules':
-            assert isinstance(value, list)
-            if value:
-                for val in value:
-                    assert isinstance(val, RuleSpec)
-            self.__dict__['_rules'] = Converter.encode(value)
-        elif item in django_internal_attrs or ['_rules']:
-            self.__dict__[item] = value
-        else:
-            raise AttributeError(item)
+    simple_attrs = []
+    json_field_schema = {
+        'rules': [RuleSpec],
+    }
 
-    @property
-    def rules(self):
-        """Construct a list of RuleSpec objects from the JSON object stored
-        in _rules"""
-        rules = []
-        for rule in self._rules:
-            rulespec = RuleSpec(
-                rule=rule['__RuleSpec__']['rule'],
-                name=rule['__RuleSpec__']['name'],
-                checks=rule['__RuleSpec__']['checks']
-            )
-            rules.append(rulespec)
-        return rules
+    # @property
+    # def rules(self):
+    #     self.__getattr__(self, 'rules')
 
     @classmethod
     def get_new_id(cls, entity_name):
@@ -129,7 +105,3 @@ class Classifier(IdModel):
                         r_spec.checks = rule_dict[rule]['checks']
                     rules.append(r_spec)
                 Classifier(id=classifier_id, rules=rules).put()
-
-    def put(self):
-        self.full_clean()
-        self.save()
