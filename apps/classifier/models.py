@@ -39,17 +39,9 @@ class RuleSpec(BaseModel):
     name = models.TextField(blank=True)
     # Python code for pre-commit checks on the rule parameters.
     # JSON object containing a list of checks
-    checks = JSONField(default=[])
+    checks = JSONField(default=[], schema=[basestring])
 
-    simple_attrs = ['name', 'rule']
-
-    json_field_schema = {
-        'checks': [basestring]
-    }
-
-    # @property
-    # def checks(self):
-    #     self.__getattr__(self, 'checks')
+    attr_list = ['name', 'rule', 'checks']
 
 
 class Classifier(IdModel):
@@ -57,16 +49,9 @@ class Classifier(IdModel):
 
     # Rule specifications for the classifier.
     # A JSON object containing a list of Rule specifications.
-    rules = JSONField(default=[])
+    rules = JSONField(default=[], schema=[RuleSpec])
 
-    simple_attrs = []
-    json_field_schema = {
-        'rules': [RuleSpec],
-    }
-
-    # @property
-    # def rules(self):
-    #     self.__getattr__(self, 'rules')
+    attr_list = ['rules']
 
     @classmethod
     def get_new_id(cls, entity_name):

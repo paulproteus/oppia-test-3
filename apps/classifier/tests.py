@@ -19,6 +19,7 @@
 __author__ = 'Sean Lip'
 
 from oppia.apps.classifier.models import Classifier
+from oppia.apps.classifier.models import RuleSpec
 from django.utils import unittest
 
 
@@ -37,3 +38,14 @@ class ClassifierModelUnitTests(unittest.TestCase):
 
         Classifier.delete_all_classifiers()
         self.assertEqual(Classifier.objects.count(), 0)
+
+    def test_setting_and_getting_attrs(self):
+        """Test __getattr__ and __setattr__ methods"""
+        rspec = RuleSpec(name='test name', checks=['test check'])
+        classifier = Classifier(id='test id', rules=[rspec])
+        classifier.put()
+
+        classifiers = Classifier.objects.all()
+        self.assertEqual(classifiers.count(), 1)
+        new_classifier = classifiers[0]
+        self.assertEqual(new_classifier.rules, [rspec])
