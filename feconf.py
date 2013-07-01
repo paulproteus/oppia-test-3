@@ -76,14 +76,18 @@ TEMPLATE_DIR = os.path.join(
 # The directory containing third-party files.
 THIRD_PARTY_DIR = 'third_party'
 
-# The directories containing sample classifiers, explorations and widgets.
-SAMPLE_CLASSIFIERS_DIR = 'oppia/data/classifiers'
-SAMPLE_EXPLORATIONS_DIR = 'oppia/data/explorations'
-SAMPLE_IMAGES_DIR = 'oppia/data/images'
-INTERACTIVE_WIDGETS_DIR = 'oppia/data/widgets/interactive'
-NONINTERACTIVE_WIDGETS_DIR = 'oppia/data/widgets/noninteractive'
+# The directory containing this file (used for finding embedded data)
+_THIS_DIR = os.path.dirname(os.path.abspath(__file__))
+_DATA_DIR = os.path.join(_THIS_DIR, 'data')
 
-OBJECT_TEMPLATES_DIR = 'data/objects/templates'
+# The directories containing sample classifiers, explorations and widgets.
+SAMPLE_CLASSIFIERS_DIR = os.path.join(_DATA_DIR, 'classifiers')
+SAMPLE_EXPLORATIONS_DIR = os.path.join(_DATA_DIR, 'explorations')
+SAMPLE_IMAGES_DIR = os.path.join(_DATA_DIR, 'images')
+INTERACTIVE_WIDGETS_DIR = os.path.join(_DATA_DIR, 'widgets/interactive')
+NONINTERACTIVE_WIDGETS_DIR = os.path.join(_DATA_DIR, 'widgets/noninteractive')
+
+OBJECT_TEMPLATES_DIR = os.path.join(_DATA_DIR, 'objects/templates')
 
 # The jinja environment used for loading object view and edit templates.
 OBJECT_JINJA_ENV = jinja2.Environment(
