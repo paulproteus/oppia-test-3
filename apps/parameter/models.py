@@ -18,10 +18,9 @@ __author__ = 'Sean Lip'
 
 import re
 
-from apps.base_model.models import BaseModel
-from oppia.apps.types.models import get_object_class
-from oppia.apps.base_model.models import Converter
+from oppia.apps.base_model.models import BaseModel
 from oppia.apps.base_model.models import django_internal_attrs
+from oppia.apps.types.models import get_object_class
 from oppia import utils
 
 from django.db import models
@@ -46,7 +45,7 @@ class Parameter(BaseModel):
     # The type of the parameter.
     obj_type = models.CharField(max_length=100)
     # The default value of the parameter.
-    values = JSONField(blank=True)
+    values = JSONField(default=[], blank=True, primitivelist=True)
 
     def validate_name(self):
         """Check that the value is alphanumeric."""
@@ -67,19 +66,20 @@ class Parameter(BaseModel):
         elif item == 'values':
             # Always assign obj_type before values. Otherwise this will fail.
             object_class = get_object_class(self.obj_type)
-            values = [object_class.normalize(elem) for elem in value]
+            try:
+                values = [object_class.normalize(elem) for elem in value]
+            except TypeError:
+                values = []
             self.__dict__['values'] = values
         elif item in django_internal_attrs or item in [
-            'name', 'description', 'values', '_json_field_cache'
+            'name', 'description', 'values', '_json_field_cache', 'parameter_ptr_id'
         ]:
             self.__dict__[item] = value
         else:
             raise AttributeError(item)
 
-    def put(self):
-        self.full_clean()
+    def _pre_put_hook(self):
         self.validate_name()
-        self.save()
 
 
 class ParamChange(Parameter):
@@ -99,35 +99,4 @@ class ParamChange(Parameter):
 class ParamSet(BaseModel):
     """A list of parameters."""
     # List of Parameter objects. An ordered list of parameters.
-    _params = JSONField()
-
-    def __setattr__(self, item, value):
-        """We encode a list of Parameter objects into a JSON object using
-        Converter.encode"""
-        if item == 'params':
-            assert isinstance(value, list)
-            for val in value:
-                assert isinstance(val, Parameter)
-            self.__dict__['_params'] = Converter.encode(value)
-        elif item in django_internal_attrs or item in ['_params', '_json_field_cache']:
-            self.__dict__[item] = value
-        else:
-            raise AttributeError(item)
-
-    @property
-    def params(self):
-        """Return a list of Parameter objects from JSON object stored in _params"""
-        params = []
-        for parameter in self._params:
-            param = Parameter(
-                name=parameter['__Parameter__']['name'],
-                description=parameter['__Parameter__']['description'],
-                obj_type=parameter['__Parameter__']['obj_type'],
-                values=parameter['__Parameter__']['values']
-            )
-            params.append(param)
-        return params
-
-    def put(self):
-        self.full_clean()
-        self.save()
+    params = JSONField(default=[], schema=[Parameter])
