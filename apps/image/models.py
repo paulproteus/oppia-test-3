@@ -24,6 +24,7 @@ from oppia.apps.base_model.models import IdModel
 from oppia import feconf
 
 from django.db import models
+from django.core.files import File
 import caching.base
 
 # TODO: Validation of the format of image model. This is builtin in django. Can
@@ -51,16 +52,18 @@ class Image(caching.base.CachingMixin, IdModel):
 
     @classmethod
     def create(cls, raw, alt_text=''):
-        """Creates a new Image object and returns its id."""
-        image_id = cls.objects.get(id=alt_text)
-        format = imghdr.what(None, h=raw)
-        image_entity = cls(id=image_id, raw=raw, format=format)
-        image_entity.put()
-        return image_entity.id
+        """Creates a new Image object and returns its id.
 
-    def put(self):
-        """Validates the model instance before saving"""
-        self.full_clean()
-        self.save()
+           Args:
+               raw:  django.core.files.File instance representing the image file.
+               alt_text: A string describing the image represented by raw.
+        """
+        image_id = cls.get_new_id(alt_text)
+        with open(raw.name) as f:
+            h = f.read()
+            format = imghdr.what(None, h=h)
+            image_entity = cls(id=image_id, raw=File(f), format=format)
+            image_entity.put()
+        return image_entity.id
 
     objects = caching.base.CachingManager()
