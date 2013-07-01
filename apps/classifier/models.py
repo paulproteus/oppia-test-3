@@ -41,8 +41,6 @@ class RuleSpec(BaseModel):
     # JSON object containing a list of checks
     checks = JSONField(default=[], schema=[basestring])
 
-    attr_list = ['name', 'rule', 'checks']
-
 
 class Classifier(IdModel):
     """An Oppia classifier. Its id is the same as its directory name."""
@@ -50,8 +48,6 @@ class Classifier(IdModel):
     # Rule specifications for the classifier.
     # A JSON object containing a list of Rule specifications.
     rules = JSONField(default=[], schema=[RuleSpec])
-
-    attr_list = ['rules']
 
     @classmethod
     def get_new_id(cls, entity_name):

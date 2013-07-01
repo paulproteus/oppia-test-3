@@ -52,8 +52,3 @@ class TypedInstance(BaseModel):
     obj_type = models.CharField(max_length=100)
     # A normalized Python representation of the instance's value.
     value = JSONField()
-
-    def put(self):
-        self.full_clean()
-        self._pre_put_hook()
-        self.save()
