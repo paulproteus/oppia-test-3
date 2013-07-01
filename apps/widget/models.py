@@ -22,8 +22,7 @@ import copy
 import os
 
 from oppia.apps.base_model.models import BaseModel
-from oppia.apps.base_model.models import Converter
-from oppia.apps.base_model.models import django_internal_attrs
+from oppia.apps.base_model.models import IdModel
 from oppia.apps.classifier.models import Classifier
 from oppia.apps.parameter.models import Parameter
 from oppia import feconf
@@ -32,6 +31,7 @@ from oppia import utils
 from django.db import models
 from django.core.exceptions import ValidationError
 from json_field import JSONField
+from json_field import Converter
 
 
 class AnswerHandler(BaseModel):
@@ -54,15 +54,13 @@ class AnswerHandler(BaseModel):
     def rules(self):
         if not self.classifier:
             return []
-        return Classifier.objects.get(id=self.classifier).rules
+        return Classifier.get(self.classifier).rules
 
-    def put(self):
-        self.full_clean()
+    def _pre_put_hook(self):
         self.validate_classifier()
-        self.save()
 
 
-class Widget(models.Model):
+class Widget(IdModel):
     """A superclass for NonInteractiveWidget and InteractiveWidget.
 
     NB: The ids for this class are strings that are the concatenations of:
@@ -71,7 +69,6 @@ class Widget(models.Model):
       - the camel-cased version of the human-readable names.
     """
 
-    id = models.CharField(max_length=100, primary_key=True)
     # The human-readable name of the widget.
     name = models.CharField(max_length=50)
     # The category in the widget repository to which this widget belongs.
@@ -83,49 +80,9 @@ class Widget(models.Model):
     # Parameter specifications for this widget. The default parameters can be
     # overridden when the widget is used within a State.
     # List of Parameter objects. An ordered list of parameters.
-    _params = JSONField(default=[], blank=True)
+    params = JSONField(default=[], schema=[Parameter], blank=True)
 
-    def __setattr__(self, item, value):
-        """We encode a list of Parameter objects into a JSON object using
-        Converter.encode"""
-        if item == 'params':
-            assert isinstance(value, list)
-            for val in value:
-                assert isinstance(val, Parameter)
-            self.__dict__['_params'] = Converter.encode(value)
-        elif item in django_internal_attrs or item in [
-            'name',
-            'category',
-            'description',
-            'template',
-            '_params',
-            '_json_field_cache',
-            '_widget_ptr_cache',
-            'widget_ptr_id'
-        ]:
-            self.__dict__[item] = value
-        else:
-            raise AttributeError(item)
-
-    @property
-    def params(self):
-        """Return a list of Parameter objects from JSON object stored in _params"""
-        params = []
-        for parameter in self._params:
-            param = Parameter(
-                name=parameter['__Parameter__']['name'],
-                description=parameter['__Parameter__']['description'],
-                obj_type=parameter['__Parameter__']['obj_type'],
-                values=parameter['__Parameter__']['values']
-            )
-            params.append(param)
-        return params
-
-    @classmethod
-    def get(cls, widget_id):
-        """Gets a widget by id. If it does not exist, returns None."""
-        # TODO(sll): Modify this to handle non-interactive widgets.
-        return cls.objects.get(id=widget_id)
+    attrs_list = ['name', 'category', 'description', 'template', 'params']
 
     def put(self):
         """The put() method should only be called on subclasses of Widget."""
@@ -169,7 +126,7 @@ class Widget(models.Model):
         if widget is None:
             raise Exception('No widget found with id %s' % widget_id)
 
-        result = copy.deepcopy(widget.to_dict(exclude=['class_']))
+        result = copy.deepcopy(widget.to_dict())
 
         result.update({
             'id': widget_id,
@@ -187,7 +144,7 @@ class Widget(models.Model):
             output[key] = getattr(self, key)
 
         output['params'] = self.params
-        output['handlers'] = self._handlers
+        output['handlers'] = Converter.encode(self.handlers)
 
         return output
 
@@ -232,36 +189,9 @@ class InteractiveWidget(Widget):
     """A generic interactive widget."""
 
     # List of AnswerHandler objects stored in a JSON object.
-    _handlers = JSONField(default=[])
+    handlers = JSONField(default=[], schema=[AnswerHandler])
 
-    def __setattr__(self, item, value):
-        """We encode a list of AnswerHandler objects into a JSON object using
-        Converter.encode"""
-
-        if item == 'handlers':
-            assert isinstance(value, list)
-            if not value:
-                raise ValidationError('%s must be a non-empty list' % item)
-            for val in value:
-                assert isinstance(val, AnswerHandler)
-            self.__dict__['_handlers'] = Converter.encode(value)
-        elif item in django_internal_attrs or item in ['_handlers']:
-            self.__dict__[item] = value
-        else:
-            super(InteractiveWidget, self).__setattr__(item, value)
-
-    @property
-    def handlers(self):
-        """A list of AnswerHandler objects from JSON object stored in _handlers"""
-        handlers = []
-        for handler in self._handlers:
-            ans_handler = AnswerHandler(
-                name=handler['__AnswerHandler__'].get('name'),
-            )
-            ans_handler.classifier = handler['__AnswerHandler__'].get(
-                'classifier', '')
-            handlers.append(ans_handler)
-        return handlers
+    attrs_list = Widget.attr_list() + ['handlers']
 
     def _pre_put_hook(self):
         # Checks that at least one handler exists.
