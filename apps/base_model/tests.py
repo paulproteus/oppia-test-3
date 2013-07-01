@@ -18,8 +18,23 @@
 
 __author__ = 'Tarashish Mishra'
 
-from oppia.apps.base_model.models import Converter
+from json_field import Converter
+from oppia.apps.base_model.models import BaseModel
+from oppia.apps.base_model.models import IdModel
 from django.utils import unittest
+
+
+def inheritors(klass):
+    """Get all the subclasses which inherit from a class"""
+    subclasses = set()
+    work = [klass]
+    while work:
+        parent = work.pop()
+        for child in parent.__subclasses__():
+            if child not in subclasses:
+                subclasses.add(child)
+                work.append(child)
+    return subclasses
 
 
 class ConverterUnitTests(unittest.TestCase):
@@ -33,7 +48,7 @@ class ConverterUnitTests(unittest.TestCase):
 
         value = [1, 'a string', 3.5, [2, 3]]
         encoded_value = Converter.encode(value)
-        self.assertEqual(encoded_value, [1, u"a string", 3.5, [2, 3]])
+        self.assertEqual(encoded_value, [1, u'a string', 3.5, [2, 3]])
 
         value = (1, 2, 3)
         with self.assertRaises(NotImplementedError):
@@ -90,3 +105,17 @@ class ConverterUnitTests(unittest.TestCase):
                 2: [{'__A__': {'a': {'__B__': {'b': 4}}}},
                     {'__A__': {'a': {'__B__': {'b': 5}}}}]
             })
+
+
+class AttrListUnitTests(unittest.TestCase):
+    """Test the attr_list of the subclasses"""
+
+    def test_elements_of_attr_lists_for_all_classes_are_strings(self):
+        subclasses = inheritors(BaseModel) - {IdModel}
+        primitive = (basestring, bool, float, int)
+        for subclass in subclasses:
+            attr_list = subclass.attr_list()
+            self.assertNotEqual(attr_list, [])
+            self.assertIsInstance(attr_list, list)
+            for value in attr_list:
+                self.assertIsInstance(value, basestring)
